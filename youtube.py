@@ -52,10 +52,9 @@ def post_short(video_path: Path, title: str, description: str) -> str:
     youtube = _get_service()
     video_path = Path(video_path).absolute()
 
-    short_title = (
-        f"{title[:95]} {SHORTS_HASHTAG}" if len(title) <= 95
-        else f"{title[:94]} {SHORTS_HASHTAG}"
-    )
+    suffix = f" {SHORTS_HASHTAG}"  # " #Shorts" = 8 chars
+    max_title_len = 100 - len(suffix)  # 92
+    short_title = f"{title[:max_title_len]}{suffix}"
 
     body = {
         "snippet": {
@@ -84,8 +83,13 @@ def post_short(video_path: Path, title: str, description: str) -> str:
     )
 
     response = None
-    while response is None:
+    max_chunks = 200
+    for _ in range(max_chunks):
         _, response = request.next_chunk()
+        if response is not None:
+            break
+    else:
+        raise RuntimeError("YouTube upload stalled after too many chunks")
 
     video_id = response["id"]
     log.info("YouTube Short uploaded: https://youtube.com/shorts/%s", video_id)
