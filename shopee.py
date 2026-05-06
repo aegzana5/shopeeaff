@@ -104,7 +104,9 @@ def _fetch_and_parse() -> list[dict]:
     stream = io.TextIOWrapper(resp.raw, encoding="utf-8-sig")
     items = _parse_feed(stream)
     CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    CACHE_PATH.write_text(json.dumps(items), encoding="utf-8")
+    tmp = CACHE_PATH.with_suffix(".tmp")
+    tmp.write_text(json.dumps(items), encoding="utf-8")
+    tmp.replace(CACHE_PATH)
     return items
 
 

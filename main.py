@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 def run_post_cycle():
     log.info("Starting post cycle")
 
-    items = get_trending_fashion(limit_per_keyword=5)
+    items = get_trending_fashion()
     if not items:
         log.error("No items from Shopee")
         return
