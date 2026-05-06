@@ -42,7 +42,7 @@ def test_load_cookies_returns_list(tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 
 def test_post_clip_raises_on_expired_session(tmp_path):
-    """RuntimeError with 'expired' when page.url contains 'login'."""
+    """RuntimeError with exact message when page.url contains 'login'."""
     import tiktok
 
     # Build mock playwright chain
@@ -66,8 +66,9 @@ def test_post_clip_raises_on_expired_session(tmp_path):
         with patch("tiktok.sync_playwright", return_value=mock_playwright_cm):
             with patch("tiktok.time") as mock_time:
                 mock_time.sleep = MagicMock()
-                with pytest.raises(RuntimeError, match="expired"):
+                with pytest.raises(RuntimeError) as exc_info:
                     tiktok.post_clip(tmp_path / "clip.mp4", "test caption")
+    assert str(exc_info.value) == "TikTok session expired. Run: python3 setup_tiktok.py"
 
 
 # ---------------------------------------------------------------------------
@@ -120,3 +121,9 @@ def test_post_clip_returns_posted_on_success(tmp_path):
                 result = tiktok.post_clip(video_file, "test caption")
 
     assert result == "posted"
+    # Verify goto was called with TikTok upload URL
+    mock_page.goto.assert_called_once()
+    goto_url = mock_page.goto.call_args[0][0]
+    assert "tiktok.com/upload" in goto_url
+    # Verify file was set
+    mock_fc_value.set_files.assert_called_once()

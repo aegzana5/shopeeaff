@@ -8,10 +8,10 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 SESSION_FILE = Path("assets/tiktok_session.json")
-SESSION_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 
 def main():
+    SESSION_FILE.parent.mkdir(parents=True, exist_ok=True)
     print("Opening browser for TikTok login...")
     print("1. Log into TikTok in the browser window")
     print("2. Once you see the TikTok home feed, come back here and press Enter")
@@ -26,7 +26,9 @@ def main():
 
         cookies = ctx.cookies()
         session_data = {"cookies": cookies}
-        SESSION_FILE.write_text(json.dumps(session_data, indent=2))
+        tmp = SESSION_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(session_data, indent=2))
+        tmp.rename(SESSION_FILE)
         print(f"Session saved to {SESSION_FILE}")
         browser.close()
 

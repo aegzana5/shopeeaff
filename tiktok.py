@@ -49,18 +49,19 @@ def post_clip(video_path: Path, caption: str) -> str:
             time.sleep(3)
 
             if "login" in page.url:
-                browser.close()
-                raise RuntimeError(
-                    "TikTok session expired. Run: python3 setup_tiktok.py"
-                )
+                raise RuntimeError("SESSION_EXPIRED")
 
             # Upload file
+            upload_sel = None
+            for sel in ['input[type="file"]', '[class*="upload"]']:
+                if page.locator(sel).count() > 0:
+                    upload_sel = sel
+                    break
+            if upload_sel is None:
+                raise RuntimeError("TikTok upload: no file input found on upload page")
+
             with page.expect_file_chooser(timeout=15000) as fc_info:
-                for sel in ['input[type="file"]', '[class*="upload"]']:
-                    lc = page.locator(sel)
-                    if lc.count() > 0:
-                        lc.first.click()
-                        break
+                page.locator(upload_sel).first.click()
             fc_info.value.set_files(str(video_path))
             time.sleep(5)
 
@@ -70,7 +71,7 @@ def post_clip(video_path: Path, caption: str) -> str:
                 lc = page.locator(sel)
                 if lc.count() > 0:
                     lc.first.click()
-                    lc.first.fill(full_caption)
+                    page.keyboard.type(full_caption)
                     break
             time.sleep(1)
 
@@ -82,8 +83,9 @@ def post_clip(video_path: Path, caption: str) -> str:
                     break
             time.sleep(10)
 
-            browser.close()
             return "posted"
         except Exception as e:
             browser.close()
+            if str(e) == "SESSION_EXPIRED":
+                raise RuntimeError("TikTok session expired. Run: python3 setup_tiktok.py") from None
             raise RuntimeError(f"TikTok post failed: {e}") from e
