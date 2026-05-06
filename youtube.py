@@ -83,13 +83,8 @@ def post_short(video_path: Path, title: str, description: str) -> str:
     )
 
     response = None
-    max_chunks = 200
-    for _ in range(max_chunks):
+    while response is None:
         _, response = request.next_chunk()
-        if response is not None:
-            break
-    else:
-        raise RuntimeError("YouTube upload stalled after too many chunks")
 
     video_id = response["id"]
     log.info("YouTube Short uploaded: https://youtube.com/shorts/%s", video_id)

@@ -72,7 +72,7 @@ def run_video_cycle():
         log.error("No items from Shopee feed")
         return
 
-    clip_items = pick_top_items(items, n=CLIPS_PER_DAY + 5)[POSTS_PER_DAY:]
+    clip_items = pick_top_items(items, n=POSTS_PER_DAY + CLIPS_PER_DAY + 5)[POSTS_PER_DAY:]
     clip_items = clip_items[:CLIPS_PER_DAY]
 
     posted = 0

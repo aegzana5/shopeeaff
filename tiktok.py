@@ -83,6 +83,7 @@ def post_clip(video_path: Path, caption: str) -> str:
                     break
             time.sleep(10)
 
+            browser.close()
             return "posted"
         except Exception as e:
             browser.close()

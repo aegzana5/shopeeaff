@@ -6,8 +6,9 @@ import json
 import time
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from config import TIKTOK_SESSION_FILE
 
-SESSION_FILE = Path("assets/tiktok_session.json")
+SESSION_FILE = Path(TIKTOK_SESSION_FILE)
 
 
 def main():
