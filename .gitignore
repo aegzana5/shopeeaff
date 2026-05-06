@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+logs/
+assets/output/
+assets/ig_session.json
+assets/shopee_cookies.json
+venv/
