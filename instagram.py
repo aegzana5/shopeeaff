@@ -4,23 +4,13 @@ Browser state persisted to disk so re-login is rare.
 """
 import time
 from pathlib import Path
-from urllib.parse import unquote
 
 from config import IG_USERNAME, IG_PASSWORD
 
 STATE_FILE = Path("assets/browser_state.json")
 
-IG_COOKIES = [
-    {"name": "sessionid",   "value": unquote("25336031048%3AODklGG3P78hmeS%3A27%3AAYgOu4ViVuBORTQMjgwG1sstHd0yaXrAgfaIEDLwaQ"),
-     "domain": ".instagram.com", "path": "/"},
-    {"name": "csrftoken",   "value": "56c1LXqpMP8xQG3gmtcGbIPaV7mjw8AI",
-     "domain": ".instagram.com", "path": "/"},
-    {"name": "ds_user_id",  "value": "25336031048",
-     "domain": ".instagram.com", "path": "/"},
-]
 
-
-def _make_context(p, inject_cookies: bool = False):
+def _make_context(p):
     browser = p.chromium.launch(
         headless=True,
         args=["--disable-blink-features=AutomationControlled", "--no-sandbox"],
@@ -34,12 +24,9 @@ def _make_context(p, inject_cookies: bool = False):
         ),
         "locale": "en-US",
     }
-    if STATE_FILE.exists() and not inject_cookies:
+    if STATE_FILE.exists():
         kwargs["storage_state"] = str(STATE_FILE)
-    ctx = browser.new_context(**kwargs)
-    if inject_cookies:
-        ctx.add_cookies(IG_COOKIES)
-    return browser, ctx
+    return browser, browser.new_context(**kwargs)
 
 
 def _ensure_logged_in(page) -> bool:
@@ -65,7 +52,7 @@ def post_image(image_path: Path, caption: str) -> str:
         )
 
     with sync_playwright() as p:
-        browser, ctx = _make_context(p, inject_cookies=False)
+        browser, ctx = _make_context(p)
         page = ctx.new_page()
 
         ok = _ensure_logged_in(page)
