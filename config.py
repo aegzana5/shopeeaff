@@ -9,6 +9,8 @@ IG_PASSWORD = os.getenv("IG_PASSWORD")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
 SHOPEE_FEED_URL = os.getenv("SHOPEE_FEED_URL")
+if not SHOPEE_FEED_URL:
+    raise EnvironmentError("SHOPEE_FEED_URL is required. Set it in .env")
 SHOPEE_FEED_CACHE_HOURS = int(os.getenv("SHOPEE_FEED_CACHE_HOURS", "6"))
 
 POST_TIMES = os.getenv("POST_TIMES", "08:00,11:00,14:00,18:00,21:00").split(",")
