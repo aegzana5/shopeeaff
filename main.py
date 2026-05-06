@@ -6,7 +6,10 @@ from shopee import get_trending_fashion, pick_top_items
 from content_gen import generate_caption, generate_reel_script
 from media_gen import create_post_image, create_reel
 from instagram import post_image, post_reel
-from config import POSTS_PER_DAY, REELS_PER_DAY, IMAGE_POSTS_PER_DAY
+from video_gen import create_clip
+from tiktok import post_clip
+from youtube import post_short
+from config import POSTS_PER_DAY, REELS_PER_DAY, IMAGE_POSTS_PER_DAY, CLIPS_PER_DAY
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,7 +34,7 @@ def run_post_cycle():
     log.info(f"{len(top_items)} items selected")
 
     image_items = top_items[:IMAGE_POSTS_PER_DAY]
-    reel_batches = [top_items[3:6], top_items[3:6]]
+    reel_batches = [top_items[IMAGE_POSTS_PER_DAY:IMAGE_POSTS_PER_DAY+3]] * REELS_PER_DAY
 
     posted = 0
 
@@ -61,6 +64,45 @@ def run_post_cycle():
     log.info(f"Cycle done: {posted}/{POSTS_PER_DAY} posted")
 
 
+def run_video_cycle():
+    log.info("Starting video cycle")
+
+    items = get_trending_fashion()
+    if not items:
+        log.error("No items from Shopee feed")
+        return
+
+    clip_items = pick_top_items(items, n=CLIPS_PER_DAY + 5)[POSTS_PER_DAY:]
+    clip_items = clip_items[:CLIPS_PER_DAY]
+
+    posted = 0
+    for i, item in enumerate(clip_items):
+        try:
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            clip_path = create_clip(item, f"clip_{ts}_{i}")
+            caption_data = generate_caption(item, post_type="reel")
+            caption = caption_data["caption"]
+            title = item["itemName"][:100]
+
+            try:
+                post_clip(clip_path, caption)
+                log.info(f"TikTok posted: {item['itemName'][:40]}")
+            except Exception as e:
+                log.error(f"TikTok post {i} failed: {e}")
+
+            try:
+                video_id = post_short(clip_path, title, caption)
+                log.info(f"YouTube Short posted: {video_id}")
+            except Exception as e:
+                log.error(f"YouTube post {i} failed: {e}")
+
+            posted += 1
+        except Exception as e:
+            log.error(f"Video clip {i} failed: {e}")
+
+    log.info(f"Video cycle done: {posted}/{CLIPS_PER_DAY} clips")
+
+
 def _parse_script(raw: str) -> dict:
     result = {}
     for line in raw.splitlines():
@@ -72,3 +114,4 @@ def _parse_script(raw: str) -> dict:
 
 if __name__ == "__main__":
     run_post_cycle()
+    run_video_cycle()
