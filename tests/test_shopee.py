@@ -78,10 +78,12 @@ def test_cache_refreshed_when_stale(tmp_path, monkeypatch):
     monkeypatch.setattr("shopee.CACHE_PATH", cache_path)
     monkeypatch.setattr("shopee.CACHE_HOURS", 6)
 
+    # Simulate resp.raw as a bytes stream readable by TextIOWrapper
+    raw_bytes = SAMPLE_CSV.encode("utf-8")
+    mock_raw = io.BytesIO(raw_bytes)
     mock_resp = MagicMock()
-    mock_resp.iter_lines.return_value = iter(
-        SAMPLE_CSV.encode("utf-8").splitlines()
-    )
+    mock_resp.raw = mock_raw
+
     with patch("shopee.requests.get", return_value=mock_resp):
         import importlib, shopee as shopee_mod
         importlib.reload(shopee_mod)
@@ -91,6 +93,22 @@ def test_cache_refreshed_when_stale(tmp_path, monkeypatch):
 
     # Verify fresh data returned (fashion item from feed), not stale cache
     assert any(i["itemId"] == "111" for i in result)
+
+
+def test_download_failure_returns_stale_cache(tmp_path, monkeypatch):
+    stale_items = [{"itemId": "stale", "itemName": "old item"}]
+    cache_path = _make_cache(tmp_path, stale_items, age_seconds=7 * 3600)
+    monkeypatch.setattr("shopee.CACHE_PATH", cache_path)
+    monkeypatch.setattr("shopee.CACHE_HOURS", 6)
+
+    with patch("shopee.requests.get", side_effect=ConnectionError("network down")):
+        import importlib, shopee as shopee_mod
+        importlib.reload(shopee_mod)
+        monkeypatch.setattr("shopee.CACHE_PATH", cache_path)
+        monkeypatch.setattr("shopee.CACHE_HOURS", 6)
+        result = shopee_mod.get_trending_fashion()
+
+    assert result == stale_items
 
 
 def test_pick_top_items_returns_n():

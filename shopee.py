@@ -4,6 +4,7 @@ Streams the 3.94 GB CSV feed, filters fashion items on the fly,
 and caches up to 500 results as assets/shopee_cache.json.
 """
 import csv
+import io
 import json
 import time
 from pathlib import Path
@@ -30,7 +31,11 @@ def _is_fashion(row: dict) -> bool:
         row.get("global_category2", "") +
         row.get("global_category3", "")
     ).lower()
-    return any(kw in cats for kw in _FASHION_CATS)
+    if cats:
+        return any(kw in cats for kw in _FASHION_CATS)
+    # Fallback: check title if categories are empty
+    title = row.get("title", "").lower()
+    return any(kw in title for kw in _FASHION_CATS)
 
 
 def _parse_row(row: dict) -> Optional[dict]:
@@ -94,21 +99,26 @@ def _is_fresh() -> bool:
 
 
 def _fetch_and_parse() -> list[dict]:
-    resp = requests.get(SHOPEE_FEED_URL, stream=True, timeout=60)
+    resp = requests.get(SHOPEE_FEED_URL, stream=True, timeout=(10, 300))
     resp.raise_for_status()
-    # Decode streamed lines to text (feed is UTF-8 with BOM)
-    lines = (line.decode("utf-8-sig") if isinstance(line, bytes) else line
-             for line in resp.iter_lines())
-    items = _parse_feed(lines)
+    stream = io.TextIOWrapper(resp.raw, encoding="utf-8-sig")
+    items = _parse_feed(stream)
     CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
     CACHE_PATH.write_text(json.dumps(items), encoding="utf-8")
     return items
 
 
-def get_trending_fashion(limit_per_keyword: int = 8) -> list[dict]:
+def get_trending_fashion() -> list[dict]:
     if _is_fresh():
         return json.loads(CACHE_PATH.read_text(encoding="utf-8"))
-    return _fetch_and_parse()
+    try:
+        return _fetch_and_parse()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("Shopee feed fetch failed: %s", e)
+        if CACHE_PATH.exists():
+            return json.loads(CACHE_PATH.read_text(encoding="utf-8"))
+        return []
 
 
 def pick_top_items(items: list[dict], n: int = 5) -> list[dict]:
