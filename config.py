@@ -6,8 +6,10 @@ load_dotenv()
 IG_USERNAME = os.getenv("IG_USERNAME")
 IG_PASSWORD = os.getenv("IG_PASSWORD")
 
-SHOPEE_AFFILIATE_ID = os.getenv("SHOPEE_AFFILIATE_ID", "27191763")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+
+SHOPEE_FEED_URL = os.getenv("SHOPEE_FEED_URL")
+SHOPEE_FEED_CACHE_HOURS = int(os.getenv("SHOPEE_FEED_CACHE_HOURS", "6"))
 
 POST_TIMES = os.getenv("POST_TIMES", "08:00,11:00,14:00,18:00,21:00").split(",")
 TIMEZONE = os.getenv("TIMEZONE", "Asia/Bangkok")
