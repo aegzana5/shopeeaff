@@ -1,104 +1,148 @@
 """
-Fetch trending fashion from Lazada TH — public, no login required.
-Reuses one Playwright browser across all keyword searches.
+Fetch trending fashion from Shopee affiliate product feed.
+Streams the 3.94 GB CSV feed, filters fashion items on the fly,
+and caches up to 500 results as assets/shopee_cache.json.
 """
-import os
+import csv
+import io
+import json
 import time
-from playwright.sync_api import sync_playwright
+from pathlib import Path
+from typing import Optional
 
-LAZADA_SEARCH = "https://www.lazada.co.th/catalog/?q={}&sort=popularity&page=1"
+import requests
 
-FASHION_KEYWORDS = [
-    "เสื้อผ้าผู้หญิง",
-    "ชุดเดรส",
-    "เสื้อผ้าเกาหลี",
-    "เสื้อครอป",
-    "ชุดเซต",
+from config import SHOPEE_FEED_URL, SHOPEE_FEED_CACHE_HOURS
+
+CACHE_PATH = Path("assets/shopee_cache.json")
+CACHE_HOURS = SHOPEE_FEED_CACHE_HOURS
+MAX_ITEMS = 500  # collect up to 500 fashion items from the 19.6M-row feed
+
+_FASHION_CATS = [
+    "เสื้อผ้า", "แฟชั่น", "ชุด", "กางเกง", "กระโปรง", "เสื้อ",
+    "รองเท้า", "กระเป๋า", "เครื่องประดับ",
+    "fashion", "clothing", "shoes", "bag", "dress", "accessories",
 ]
 
-SHOPEE_AFF_ID = os.getenv("SHOPEE_AFFILIATE_ID", "27191763")
 
-_EXTRACT_JS = """() => {
-    const cards = document.querySelectorAll('[data-tracking="product-card"]');
-    return Array.from(cards).map(c => {
-        const img = c.querySelector('img');
-        const link = c.querySelector('a');
-        const name = c.querySelector('.RfADt');
-        const price = c.querySelector('.ooOxS');
-        let imgUrl = img ? (img.getAttribute('data-src') || img.getAttribute('src') || '') : '';
-        if (imgUrl.startsWith('data:')) imgUrl = '';
-        return {
-            name: name ? name.textContent.trim() : '',
-            image: imgUrl,
-            url: link ? link.href : '',
-            price: price ? price.textContent.trim() : '',
-        };
-    }).filter(i => i.name && i.image);
-}"""
+def _is_fashion(row: dict) -> bool:
+    cats = (
+        row.get("global_category1", "") +
+        row.get("global_category2", "") +
+        row.get("global_category3", "")
+    ).lower()
+    return any(kw in cats for kw in _FASHION_CATS)
 
 
-def _scrape_page(page, keyword: str, limit: int) -> list[dict]:
-    encoded = keyword.replace(" ", "+")
-    page.goto(LAZADA_SEARCH.format(encoded), wait_until="load", timeout=45000)
-    time.sleep(3)
-    raw = page.evaluate(_EXTRACT_JS) or []
+def _parse_row(row: dict) -> Optional[dict]:
+    name = row.get("title", "").strip()
+    image = row.get("image_link", "").strip()
+    affiliate = row.get("product_short link", "").strip()  # space in column name
+
+    if not name or not image or not affiliate:
+        return None
+
+    price_display = row.get("sale_price", "").strip() or row.get("price", "").strip()
+    try:
+        sales = int(row.get("item_sold", "0").strip() or "0")
+    except ValueError:
+        sales = 0
+    try:
+        rating = float(row.get("item_rating", "0").strip() or "0")
+    except ValueError:
+        rating = 0.0
+
+    if image.startswith("//"):
+        image = "https:" + image
+
+    return {
+        "itemId": row.get("itemid", name[:20]).strip(),
+        "itemName": name[:80],
+        "price": price_display,
+        "priceDisplay": price_display,
+        "imageUrl": image,
+        "affiliateUrl": affiliate,
+        "shopName": row.get("shop_name", "").strip(),
+        "ratingStar": rating,
+        "sales": sales,
+    }
+
+
+def _parse_feed(stream: io.TextIOBase) -> list[dict]:
+    reader = csv.DictReader(stream)
+    # Strip UTF-8 BOM from first fieldname if present (when stream isn't utf-8-sig decoded)
+    if reader.fieldnames and reader.fieldnames[0].startswith("﻿"):
+        reader.fieldnames[0] = reader.fieldnames[0][1:]
     items = []
-    for r in raw[:limit]:
-        parsed = _parse(r)
-        if parsed:
+    seen = set()
+    for row in reader:
+        if len(items) >= MAX_ITEMS:
+            break
+        if not _is_fashion(row):
+            continue
+        parsed = _parse_row(row)
+        if parsed and parsed["itemId"] not in seen:
+            seen.add(parsed["itemId"])
             items.append(parsed)
     return items
 
 
-def _parse(raw: dict):
-    name = raw.get("name", "")
-    if not name:
-        return None
-    image = raw.get("image", "")
-    if image.startswith("//"):
-        image = "https:" + image
-    url = raw.get("url", "")
-    if url and not url.startswith("http"):
-        url = "https://www.lazada.co.th" + url
-    item_id = url.split("/")[-1].split(".")[0] if url else name[:20]
-    price_str = raw.get("price", "ราคาพิเศษ")
-    return {
-        "itemId": item_id,
-        "itemName": name[:80],
-        "price": price_str,
-        "priceDisplay": price_str,
-        "imageUrl": image,
-        "shopName": "",
-        "ratingStar": 0,
-        "sales": 0,
-        "productUrl": url,
-        "affiliateUrl": f"{url}{'&' if '?' in url else '?'}laz_aff={SHOPEE_AFF_ID}",
-    }
+def _is_fresh() -> bool:
+    if not CACHE_PATH.exists():
+        return False
+    return (time.time() - CACHE_PATH.stat().st_mtime) < CACHE_HOURS * 3600
+
+
+def _lines_from_response(resp):
+    """Wrap a streaming requests response as an iterable of text lines, handling UTF-8 BOM."""
+    # Use iter_lines for streaming — avoids loading the full 3.94 GB into memory.
+    # decode_unicode=True asks requests to decode bytes using the detected encoding.
+    def _gen():
+        first = True
+        for line in resp.iter_lines(decode_unicode=True):
+            # iter_lines may return bytes (e.g. in tests with mocks) or str
+            if isinstance(line, bytes):
+                line = line.decode("utf-8-sig" if first else "utf-8")
+            if first and line.startswith("﻿"):
+                line = line[1:]
+            first = False
+            yield line + "\n"
+    return _gen()
+
+
+def _fetch_and_parse() -> list[dict]:
+    resp = requests.get(SHOPEE_FEED_URL, stream=True, timeout=60)
+    resp.raise_for_status()
+    # Stream decode line-by-line: feed is CSV with UTF-8 BOM, 3.94 GB
+    lines = _lines_from_response(resp)
+    items = _parse_feed_lines(lines)
+    CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CACHE_PATH.write_text(json.dumps(items), encoding="utf-8")
+    return items
+
+
+def _parse_feed_lines(lines) -> list[dict]:
+    """Parse CSV from an iterable of text lines (used for streaming network response)."""
+    reader = csv.DictReader(lines)
+    items = []
+    seen = set()
+    for row in reader:
+        if len(items) >= MAX_ITEMS:
+            break
+        if not _is_fashion(row):
+            continue
+        parsed = _parse_row(row)
+        if parsed and parsed["itemId"] not in seen:
+            seen.add(parsed["itemId"])
+            items.append(parsed)
+    return items
 
 
 def get_trending_fashion(limit_per_keyword: int = 8) -> list[dict]:
-    seen = set()
-    all_items = []
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        ctx = browser.new_context(
-            locale="th-TH",
-            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        )
-        page = ctx.new_page()
-        for keyword in FASHION_KEYWORDS:
-            try:
-                items = _scrape_page(page, keyword, limit_per_keyword)
-                for item in items:
-                    if item["itemId"] not in seen and item["imageUrl"]:
-                        seen.add(item["itemId"])
-                        all_items.append(item)
-                print(f"  '{keyword}': {len(items)} items")
-            except Exception as e:
-                print(f"  Warning '{keyword}': {e}")
-        browser.close()
-    return all_items
+    if _is_fresh():
+        return json.loads(CACHE_PATH.read_text(encoding="utf-8"))
+    return _fetch_and_parse()
 
 
 def pick_top_items(items: list[dict], n: int = 5) -> list[dict]:
-    return items[:n]
+    return sorted(items, key=lambda x: x["sales"], reverse=True)[:n]
