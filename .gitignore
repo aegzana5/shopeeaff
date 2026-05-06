@@ -5,4 +5,7 @@ logs/
 assets/output/
 assets/ig_session.json
 assets/shopee_cookies.json
+assets/youtube_client_secrets.json
+assets/youtube_token.json
+assets/tiktok_session.json
 venv/
