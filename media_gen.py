@@ -37,48 +37,20 @@ def _get_font(size: int, thai: bool = True) -> ImageFont.FreeTypeFont:
 
 
 def create_post_image(item: dict, affiliate_url: str, output_name: str) -> Path:
-    """Create 1080x1080 image post with product photo + branding."""
+    """Download product image, center-crop to 1080×1080, save as JPEG."""
     product_img = _download_image(item["imageUrl"])
-    canvas = Image.new("RGB", IG_SIZE, BG_COLOR)
 
-    # Product image fills top 75%
-    product_img = product_img.resize((1080, 810))
-    canvas.paste(product_img, (0, 0))
+    # Center-crop to square
+    w, h = product_img.size
+    side = min(w, h)
+    left = (w - side) // 2
+    top = (h - side) // 2
+    product_img = product_img.crop((left, top, left + side, top + side))
 
-    # Bottom info bar
-    draw = ImageDraw.Draw(canvas)
-    draw.rectangle([(0, 810), (1080, 1080)], fill=(20, 20, 20))
-
-    # Brand strip at top
-    draw.rectangle([(0, 0), (1080, 60)], fill=BRAND_COLOR)
-    font_brand = _get_font(32, thai=False)
-    draw.text((20, 12), "@trendyinthai", font=font_brand, fill=(255, 255, 255))
-    draw.text((800, 12), "Shopee TH 🛍️", font=font_brand, fill=(255, 255, 255))
-
-    # Product name (truncated)
-    name = item["itemName"][:50]
-    font_name = _get_font(36)
-    draw.text((30, 830), name, font=font_name, fill=(255, 255, 255))
-
-    # Price — accept both raw int (Shopee cents) and formatted string (Lazada)
-    price = item.get("priceDisplay") or item.get("priceMin") or item.get("price", "")
-    if isinstance(price, (int, float)) and price > 1000:
-        price_display = f"฿{float(price)/100000:.0f}"
-    else:
-        price_display = str(price) if price else ""
-    font_price = _get_font(52, thai=False)
-    draw.text((30, 900), price_display, font=font_price, fill=BRAND_COLOR)
-
-    # Rating
-    rating = item.get("ratingStar", "")
-    if rating:
-        draw.text((30, 980), f"⭐ {rating}", font=_get_font(34, thai=False), fill=(200, 200, 200))
-
-    # Shopee logo text
-    draw.text((800, 900), "ซื้อได้ที่\nลิ้งค์ในไบโอ", font=_get_font(34), fill=(255, 200, 0))
+    product_img = product_img.resize(IG_SIZE, Image.LANCZOS)
 
     out_path = OUTPUT_DIR / f"{output_name}.jpg"
-    canvas.save(out_path, "JPEG", quality=95)
+    product_img.save(out_path, "JPEG", quality=95)
     return out_path
 
 
