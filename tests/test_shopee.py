@@ -79,14 +79,18 @@ def test_cache_refreshed_when_stale(tmp_path, monkeypatch):
     monkeypatch.setattr("shopee.CACHE_HOURS", 6)
 
     mock_resp = MagicMock()
-    mock_resp.iter_lines.return_value = iter(SAMPLE_CSV.encode("utf-8").splitlines())
-    with patch("shopee.requests.get", return_value=mock_resp) as mock_get:
-        import importlib, shopee
-        importlib.reload(shopee)
+    mock_resp.iter_lines.return_value = iter(
+        SAMPLE_CSV.encode("utf-8").splitlines()
+    )
+    with patch("shopee.requests.get", return_value=mock_resp):
+        import importlib, shopee as shopee_mod
+        importlib.reload(shopee_mod)
         monkeypatch.setattr("shopee.CACHE_PATH", cache_path)
         monkeypatch.setattr("shopee.CACHE_HOURS", 6)
-        result = shopee.get_trending_fashion()
-    mock_get.assert_called_once()
+        result = shopee_mod.get_trending_fashion()
+
+    # Verify fresh data returned (fashion item from feed), not stale cache
+    assert any(i["itemId"] == "111" for i in result)
 
 
 def test_pick_top_items_returns_n():
