@@ -4,15 +4,15 @@ from config import ANTHROPIC_API_KEY
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 HASHTAGS_TH = [
-    "#แฟชั่นไทย", "#ชอปปี้ไทยแลนด์", "#แฟชั่นเกาหลี", "#เสื้อผ้าสวย",
-    "#ลดราคา", "#ของดีราคาถูก", "#แฟชั่น2026", "#ชอปปี้",
-    "#เทรนด์แฟชั่น", "#ไอเดียแต่งตัว", "#outfitoftheday",
+    "#Shopeeไทย", "#ช้อปปี้", "#ช้อปปี้ไทยแลนด์",
+    "#แฟชั่นShopee", "#ของดีในShopee", "#แฟชั่นไทย",
+    "#เทรนด์แฟชั่น", "#ไอเดียแต่งตัว",
 ]
 
 HASHTAGS_EN = [
-    "#ThailandFashion", "#ShopeeTH", "#KoreanFashion", "#OOTDThailand",
-    "#FashionTrend", "#AffordableFashion", "#StyleInspo", "#ShopeeAffiliate",
-    "#TrendyInThai", "#AsianFashion", "#StreetStyleBangkok",
+    "#ShopeeTH", "#ShopeeThailand", "#ShopeeAffiliate",
+    "#ThailandFashion", "#KoreanFashion", "#OOTDThailand",
+    "#AsianFashion", "#StreetStyleBangkok",
 ]
 
 
@@ -40,7 +40,7 @@ Rules:
 - Thai first, then English
 - Use emojis naturally
 - Sound like real influencer, not ad
-- CTA: "ลิ้งค์ในไบโอ 👆" (Thai) and "Link in bio 👆" (English)
+- CTA: "ลิ้งค์ใน bio + ซื้อได้ที่ Shopee 👆" (Thai) and "Shop on Shopee — link in bio 👆" (English)
 - Keep under 200 words total
 - NO fake urgency like "only 3 left"
 
