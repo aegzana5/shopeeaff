@@ -124,22 +124,7 @@ def run_video_cycle():
             clip_name = f"clip_{ts}_{i}"
             item = batch[0]
 
-            keywords = stock_media._extract_keywords(item["itemName"])
-            vo_path = tts.generate_voiceover(item, clip_name)
-            bg_path = stock_media.fetch_bg_video(keywords, clip_name)
-
-            if clip_type == "price_reveal":
-                clip_path = create_price_reveal_clip(
-                    item, clip_name, voiceover_path=vo_path, bg_video_path=bg_path
-                )
-            elif clip_type == "countdown":
-                five_items = fresh[i * 3: i * 3 + 5]
-                if len(five_items) < 5:
-                    five_items = (five_items * 5)[:5]
-                clip_path = create_countdown_clip(
-                    five_items, clip_name, voiceover_path=vo_path, bg_video_path=bg_path
-                )
-            elif clip_type == "before_after":
+            if clip_type == "before_after":
                 clip_path = create_before_after_clip(item, clip_name)
             elif clip_type == "pov_meme":
                 clip_path = create_pov_meme_clip(item, clip_name)
@@ -148,9 +133,24 @@ def run_video_cycle():
             elif clip_type == "beat_hook":
                 clip_path = create_beat_hook_clip(item, clip_name)
             else:
-                clip_path = create_clip(
-                    batch, clip_name, voiceover_path=vo_path, bg_video_path=bg_path
-                )
+                keywords = stock_media._extract_keywords(item["itemName"])
+                vo_path = tts.generate_voiceover(item, clip_name)
+                bg_path = stock_media.fetch_bg_video(keywords, clip_name)
+                if clip_type == "price_reveal":
+                    clip_path = create_price_reveal_clip(
+                        item, clip_name, voiceover_path=vo_path, bg_video_path=bg_path
+                    )
+                elif clip_type == "countdown":
+                    five_items = fresh[i * 3: i * 3 + 5]
+                    if len(five_items) < 5:
+                        five_items = (five_items * 5)[:5]
+                    clip_path = create_countdown_clip(
+                        five_items, clip_name, voiceover_path=vo_path, bg_video_path=bg_path
+                    )
+                else:
+                    clip_path = create_clip(
+                        batch, clip_name, voiceover_path=vo_path, bg_video_path=bg_path
+                    )
 
             caption_data = generate_video_caption(item)
             caption = caption_data["caption"]
