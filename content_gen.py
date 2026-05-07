@@ -15,6 +15,12 @@ HASHTAGS_EN = [
     "#AsianFashion", "#StreetStyleBangkok",
 ]
 
+HASHTAGS_TIKTOK = [
+    "#แฟชั่นราคาถูก", "#เสื้อผ้าน่ารัก", "#ไอเดียแต่งตัว",
+    "#ของดีในShopee", "#ถูกมาก", "#แฟชั่นไทย",
+    "#fyp", "#ShopeeTH", "#ช้อปปี้ไทย",
+]
+
 
 def generate_caption(item: dict, post_type: str = "image") -> dict:
     """Generate bilingual Thai+EN caption with CTA and hashtags."""
@@ -54,12 +60,82 @@ Return ONLY the caption text, no labels."""
     caption_body = message.content[0].text.strip()
 
     top_hashtags = " ".join(HASHTAGS_TH[:6] + HASHTAGS_EN[:5])
-    full_caption = f"{caption_body}\n\n{top_hashtags}"
+    affiliate_url = item.get("affiliateUrl", "")
+    link_line = f"\n🛒 {affiliate_url}" if affiliate_url else ""
+    full_caption = f"{caption_body}\n\n{top_hashtags}{link_line}"
 
     return {
         "caption": full_caption,
         "caption_body": caption_body,
         "hashtags": top_hashtags,
+    }
+
+
+def generate_video_caption(item: dict) -> dict:
+    """Generate TikTok-native caption: scroll-stop hook + body + CTA + hashtags."""
+    price = item.get("priceDisplay") or item.get("priceMin") or item.get("price", "")
+    if isinstance(price, (int, float)) and price > 1000:
+        price_display = f"฿{float(price)/100000:.0f}"
+    else:
+        price_display = str(price) if price else ""
+
+    rating = float(item.get("ratingStar") or 0)
+    try:
+        price_num = float(str(price_display).replace("฿", "").replace(",", ""))
+    except ValueError:
+        price_num = 999
+
+    if price_num < 300:
+        formula = "PRICE_SHOCK"
+    elif rating >= 4.8:
+        formula = "SOCIAL_PROOF"
+    else:
+        formula = "POV"
+
+    formula_guide = {
+        "PRICE_SHOCK": f"Hook: แค่ {price_display} บาท?! (price shock, stops scroll)",
+        "SOCIAL_PROOF": f"Hook: ⭐{rating}/5 คนรีวิวเยอะมาก (social proof hook)",
+        "POV": f"Hook: POV: เจอเสื้อผ้าน่ารักราคา {price_display} บาทใน Shopee 🥹",
+    }[formula]
+
+    prompt = f"""You are a viral Thai TikTok fashion creator for @trendyinthai.
+
+Product: {item['itemName']}
+Price: {price_display}
+Rating: {rating} stars
+Formula: {formula_guide}
+
+Write a TikTok caption (Thai-primary):
+
+LINE 1 — HOOK (CRITICAL): Must stop the scroll. Under 50 Thai characters. Use the formula above. One emoji.
+LINE 2-3 — BODY: 1-2 lines. Product benefit, why it's worth it. Casual TikTok voice.
+LINE 4 — CTA: "กดลิ้งค์ด้านล่างได้เลย 👇" or "ลิ้งค์ด้านล่าง 🛒"
+
+Rules:
+- Thai only (light English OK as flair, not a full section)
+- Hook line must be standalone — someone reading only line 1 must feel curious or shocked
+- Sound like a real Thai TikTok creator, not an ad
+- NO fake urgency like "เหลือแค่ 3 ชิ้น"
+- Total: 4-5 lines max
+
+Return ONLY the caption text."""
+
+    message = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=280,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    caption_body = message.content[0].text.strip()
+
+    hashtags = " ".join(HASHTAGS_TIKTOK)
+    affiliate_url = item.get("affiliateUrl", "")
+    link_line = f"\n{affiliate_url}" if affiliate_url else ""
+    full_caption = f"{caption_body}\n\n{hashtags}{link_line}"
+
+    return {
+        "caption": full_caption,
+        "caption_body": caption_body,
+        "hashtags": hashtags,
     }
 
 

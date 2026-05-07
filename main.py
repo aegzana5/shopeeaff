@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 from shopee import get_trending_fashion, pick_top_items
-from content_gen import generate_caption, generate_reel_script
+from content_gen import generate_caption, generate_reel_script, generate_video_caption
 from media_gen import create_post_image, create_reel
 from instagram import post_image, post_reel
 from video_gen import create_clip
@@ -106,7 +106,7 @@ def run_video_cycle():
         try:
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             clip_path = create_clip(item, f"clip_{ts}_{i}")
-            caption_data = generate_caption(item, post_type="reel")
+            caption_data = generate_video_caption(item)
             caption = caption_data["caption"]
             title = item["itemName"][:100]
 
