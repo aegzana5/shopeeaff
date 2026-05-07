@@ -19,9 +19,16 @@ CACHE_HOURS = SHOPEE_FEED_CACHE_HOURS
 MAX_ITEMS = 500  # collect up to 500 fashion items from the 19.6M-row feed
 
 _FASHION_CATS = [
-    "เสื้อผ้า", "แฟชั่น", "ชุด", "กางเกง", "กระโปรง", "เสื้อ",
-    "รองเท้า", "กระเป๋า", "เครื่องประดับ",
-    "fashion", "clothing", "shoes", "bag", "dress", "accessories",
+    "เสื้อผ้า", "แฟชั่น", "กางเกง", "กระโปรง", "เสื้อ",
+    "รองเท้า", "กระเป๋า", "เครื่องประดับ", "ชุดเดรส", "ชุดเซต",
+    "fashion", "clothing", "shoes", "bag", "dress",
+    "women", "men clothing", "apparel",
+]
+
+_NON_FASHION_CATS = [
+    "อิเล็กทรอนิกส์", "เครื่องใช้ไฟฟ้า", "มือถือ", "คอมพิวเตอร์",
+    "อาหาร", "สุขภาพ", "ของใช้ในบ้าน", "เครื่องมือ",
+    "electronic", "mobile", "computer", "food", "health", "home appliance",
 ]
 
 
@@ -31,11 +38,11 @@ def _is_fashion(row: dict) -> bool:
         row.get("global_category2", "") +
         row.get("global_category3", "")
     ).lower()
-    if cats:
-        return any(kw in cats for kw in _FASHION_CATS)
-    # Fallback: check title if categories are empty
-    title = row.get("title", "").lower()
-    return any(kw in title for kw in _FASHION_CATS)
+    if not cats:
+        return False
+    if any(kw in cats for kw in _NON_FASHION_CATS):
+        return False
+    return any(kw in cats for kw in _FASHION_CATS)
 
 
 def _parse_row(row: dict) -> Optional[dict]:
@@ -125,3 +132,17 @@ def get_trending_fashion() -> list[dict]:
 
 def pick_top_items(items: list[dict], n: int = 5) -> list[dict]:
     return sorted(items, key=lambda x: x["sales"], reverse=True)[:n]
+
+
+def search_products(query: str) -> list[dict]:
+    """Search cached feed items by keyword match on itemName. Returns up to 10 results sorted by sales."""
+    items = get_trending_fashion()
+    query_lower = query.lower()
+    keywords = [k for k in query_lower.split() if len(k) > 1]
+    if not keywords:
+        return []
+    matches = [
+        item for item in items
+        if any(kw in item["itemName"].lower() for kw in keywords)
+    ]
+    return sorted(matches, key=lambda x: x["sales"], reverse=True)[:10]

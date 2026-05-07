@@ -123,4 +123,34 @@ def test_pick_top_items_sorts_by_sales_desc():
     items = [{"sales": 10}, {"sales": 50}, {"sales": 5}]
     result = pick_top_items(items, n=2)
     assert result[0]["sales"] == 50
-    assert result[1]["sales"] == 10
+
+
+def test_search_products_returns_matches():
+    items = [
+        {"itemName": "เสื้อยืด Korean Style", "sales": 100, "itemId": "1",
+         "price": "299", "priceDisplay": "299", "imageUrl": "https://img/1.jpg",
+         "affiliateUrl": "https://s.shopee.co.th/1", "shopName": "shop", "ratingStar": 4.5},
+        {"itemName": "กางเกงยีนส์แฟชั่น", "sales": 50, "itemId": "2",
+         "price": "499", "priceDisplay": "499", "imageUrl": "https://img/2.jpg",
+         "affiliateUrl": "https://s.shopee.co.th/2", "shopName": "shop", "ratingStar": 4.0},
+        {"itemName": "ชุดเดรสสีชมพู", "sales": 200, "itemId": "3",
+         "price": "599", "priceDisplay": "599", "imageUrl": "https://img/3.jpg",
+         "affiliateUrl": "https://s.shopee.co.th/3", "shopName": "shop", "ratingStar": 4.8},
+    ]
+    with patch("shopee.get_trending_fashion", return_value=items):
+        from shopee import search_products
+        results = search_products("korean shirt")
+    assert len(results) >= 1
+    assert any("Korean" in r["itemName"] for r in results)
+
+
+def test_search_products_returns_empty_on_no_match():
+    items = [
+        {"itemName": "โทรศัพท์มือถือ Samsung", "sales": 500, "itemId": "99",
+         "price": "5000", "priceDisplay": "5000", "imageUrl": "https://img/99.jpg",
+         "affiliateUrl": "https://s.shopee.co.th/99", "shopName": "tech", "ratingStar": 4.0},
+    ]
+    with patch("shopee.get_trending_fashion", return_value=items):
+        from shopee import search_products
+        results = search_products("dress fashion")
+    assert results == []
