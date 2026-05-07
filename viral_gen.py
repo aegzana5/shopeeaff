@@ -50,7 +50,10 @@ def create_pov_meme_clip(item: dict, output_name: str) -> Path:
     bg_path = stock_media.fetch_bg_video(keywords, output_name)
     vo_path = tts.generate_voiceover(item, output_name)
 
-    product_img = _download_image(item["imageUrl"])
+    try:
+        product_img = _download_image(item["imageUrl"])
+    except Exception:
+        product_img = Image.new("RGB", (600, 800), (40, 40, 40))
     fullbleed = _make_fullbleed(product_img)
 
     price = str(item.get("priceDisplay") or item.get("price", ""))
@@ -58,8 +61,6 @@ def create_pov_meme_clip(item: dict, output_name: str) -> Path:
 
     font_wm = _get_font(36, thai=False)
     font_pov = _get_font(54, thai=True)
-    font_price = _get_font(80, thai=False)
-    font_cta = _get_font(52, thai=True)
 
     bg_cap = None
     if bg_path:
@@ -113,7 +114,10 @@ def create_before_after_clip(item: dict, output_name: str) -> Path:
     bg_path = stock_media.fetch_bg_video(keywords, output_name)
     vo_path = tts.generate_voiceover(item, output_name)
 
-    product_img = _download_image(item["imageUrl"])
+    try:
+        product_img = _download_image(item["imageUrl"])
+    except Exception:
+        product_img = Image.new("RGB", (600, 800), (40, 40, 40))
     fullbleed = _make_fullbleed(product_img)
 
     price = str(item.get("priceDisplay") or item.get("price", ""))
@@ -198,7 +202,10 @@ def create_price_shock_clip(item: dict, output_name: str) -> Path:
     bg_path = stock_media.fetch_bg_video(keywords, output_name)
     vo_path = tts.generate_voiceover(item, output_name)
 
-    product_img = _download_image(item["imageUrl"])
+    try:
+        product_img = _download_image(item["imageUrl"])
+    except Exception:
+        product_img = Image.new("RGB", (600, 800), (40, 40, 40))
     fullbleed = _make_fullbleed(product_img)
 
     price = str(item.get("priceDisplay") or item.get("price", ""))
@@ -284,7 +291,10 @@ def create_beat_hook_clip(item: dict, output_name: str) -> Path:
     bg_path = stock_media.fetch_bg_video(keywords, output_name)
     vo_path = tts.generate_voiceover(item, output_name)
 
-    product_img = _download_image(item["imageUrl"])
+    try:
+        product_img = _download_image(item["imageUrl"])
+    except Exception:
+        product_img = Image.new("RGB", (600, 800), (40, 40, 40))
     fullbleed = _make_fullbleed(product_img)
 
     price = str(item.get("priceDisplay") or item.get("price", ""))
