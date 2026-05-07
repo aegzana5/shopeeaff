@@ -80,7 +80,7 @@ def test_create_clip_calls_ffmpeg(tmp_path):
          patch("video_gen.OUTPUT_DIR", tmp_path), \
          patch("subprocess.run", return_value=mock_result) as mock_run:
         from video_gen import create_clip
-        out = create_clip(SAMPLE_ITEM, "test_clip")
+        out = create_clip([SAMPLE_ITEM], "test_clip")
         assert mock_run.called
         cmd = mock_run.call_args[0][0]
         assert any("ffmpeg" in str(c) for c in cmd)
@@ -93,5 +93,38 @@ def test_create_clip_output_path(tmp_path):
          patch("video_gen.OUTPUT_DIR", tmp_path), \
          patch("subprocess.run", return_value=mock_result):
         from video_gen import create_clip
-        out = create_clip(SAMPLE_ITEM, "my_clip")
+        out = create_clip([SAMPLE_ITEM], "my_clip")
         assert out == tmp_path / "my_clip.mp4"
+
+
+def test_create_clip_with_voiceover_includes_audio_in_cmd(tmp_path):
+    """FFmpeg cmd should include voiceover path when voiceover_path is given."""
+    fake_vo = tmp_path / "vo.mp3"
+    fake_vo.write_bytes(b"fake-audio")
+    mock_result = MagicMock()
+
+    with patch("video_gen._download_image", side_effect=_fake_download), \
+         patch("video_gen.OUTPUT_DIR", tmp_path), \
+         patch("subprocess.run", return_value=mock_result) as mock_run:
+        from video_gen import create_clip
+        out = create_clip([SAMPLE_ITEM], "test_vo", voiceover_path=fake_vo)
+
+    assert mock_run.called
+    cmd = mock_run.call_args[0][0]
+    assert any(str(fake_vo) in str(c) for c in cmd), \
+        "voiceover_path must appear in ffmpeg command"
+    assert str(out).endswith(".mp4")
+
+
+def test_create_clip_with_nonexistent_bg_video_completes(tmp_path):
+    """create_clip with a bg_video_path that can't be opened falls back gracefully."""
+    nonexistent_bg = tmp_path / "nonexistent_bg.mp4"
+    mock_result = MagicMock()
+
+    with patch("video_gen._download_image", side_effect=_fake_download), \
+         patch("video_gen.OUTPUT_DIR", tmp_path), \
+         patch("subprocess.run", return_value=mock_result):
+        from video_gen import create_clip
+        out = create_clip([SAMPLE_ITEM], "test_bg", bg_video_path=nonexistent_bg)
+
+    assert str(out).endswith(".mp4")
