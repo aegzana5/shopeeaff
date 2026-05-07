@@ -43,3 +43,12 @@ PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
 REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN", "")
 TTS_ENABLED = os.getenv("TTS_ENABLED", "true").lower() == "true"
 STOCK_MEDIA_ENABLED = os.getenv("STOCK_MEDIA_ENABLED", "true").lower() == "true"
+
+TREND_ACCOUNTS_INSTAGRAM = [a for a in os.getenv("TREND_ACCOUNTS_INSTAGRAM", "").split(",") if a]
+TREND_ACCOUNTS_TIKTOK    = [a for a in os.getenv("TREND_ACCOUNTS_TIKTOK", "").split(",") if a]
+TREND_HASHTAGS           = [h for h in os.getenv("TREND_HASHTAGS", "แฟชั่น,ootdthailand,shopee_th").split(",") if h]
+TREND_MIN_VIEWS          = int(os.getenv("TREND_MIN_VIEWS", "10000"))
+TREND_MIN_LIKES          = int(os.getenv("TREND_MIN_LIKES", "1000"))
+TREND_TOP_N              = int(os.getenv("TREND_TOP_N", "3"))
+TREND_RESHARE_ENABLED    = os.getenv("TREND_RESHARE_ENABLED", "true").lower() == "true"
+TIKTOKAPI_ENABLED        = os.getenv("TIKTOKAPI_ENABLED", "true").lower() == "true"
