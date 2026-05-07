@@ -20,8 +20,8 @@ FONT_PATH_EN = "assets/fonts/Montserrat-Bold.ttf"
 
 CLIP_SIZE = (1080, 1920)
 FPS = 30
-DURATION = 7
-TOTAL_FRAMES = FPS * DURATION  # 210
+DURATION = 9
+TOTAL_FRAMES = FPS * DURATION  # 270
 BRAND_COLOR = (255, 77, 77)
 FFMPEG_DEFAULT = "/opt/homebrew/bin/ffmpeg"
 
@@ -132,13 +132,64 @@ def _make_fullbleed(product_img: Image.Image) -> Image.Image:
     return img.crop((left, top, left + CLIP_SIZE[0], top + CLIP_SIZE[1]))
 
 
-def create_clip(item: dict, output_name: str) -> Path:
-    """Render 7s 1080x1920 MP4 — full-bleed product image, no overlays."""
+def _render_segment(product_img: Image.Image, item: dict, frame_count: int = 90) -> list:
+    """Return a list of PIL.Image frames for one product segment (Ken Burns + text overlays)."""
+    fullbleed = _make_fullbleed(product_img)
+
+    name = item.get("itemName", "")[:40]
+    price = str(item.get("priceDisplay") or item.get("price", ""))
+
+    name_lines = [name[i:i + 20] for i in range(0, len(name), 20)][:3]
+
+    font_handle = _get_font(36, thai=False)
+    font_name = _get_font(52, thai=True)
+    font_price = _get_font(100, thai=False)
+    font_cta = _get_font(60, thai=True)
+
+    frames = []
+    for f in range(frame_count):
+        zoom_factor = 1.0 + (f / frame_count) * 0.1
+        crop_w = int(CLIP_SIZE[0] / zoom_factor)
+        crop_h = int(CLIP_SIZE[1] / zoom_factor)
+        left = (CLIP_SIZE[0] - crop_w) // 2
+        top = (CLIP_SIZE[1] - crop_h) // 2
+        frame_img = fullbleed.crop((left, top, left + crop_w, top + crop_h)).resize(CLIP_SIZE, Image.LANCZOS)
+
+        draw = ImageDraw.Draw(frame_img)
+
+        # Always: handle watermark
+        draw.text((30, 50), "@trendyinthai", font=font_handle, fill=(255, 255, 255))
+
+        if f < 30:
+            # Product name
+            y = 1420
+            for line in name_lines:
+                draw.text((540, y), line, font=font_name, fill=(255, 255, 255), anchor="mm")
+                y += 70
+        elif f < 70:
+            # Price
+            draw.text((540, 1320), price, font=font_price, fill=BRAND_COLOR, anchor="mm")
+        else:
+            # CTA
+            try:
+                draw.text((540, 1420), "ซื้อเลย 👆", font=font_cta, fill=(255, 255, 255), anchor="mm")
+            except Exception:
+                draw.text((540, 1420), "ซื้อเลย", font=font_cta, fill=(255, 255, 255), anchor="mm")
+
+        frames.append(frame_img)
+
+    return frames
+
+
+def create_clip(items: list, output_name: str) -> Path:
+    """Render 9s 1080x1920 MP4 — 3 products, 3 seconds each, Ken Burns zoom."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     ffmpeg = _ffmpeg_bin()
 
-    product_img = _download_image(item["imageUrl"])
-    frame = _make_fullbleed(product_img)
+    # Pad to exactly 3 items
+    if not items:
+        raise ValueError("create_clip requires at least one item")
+    items = (items * 3)[:3]
 
     music_files: list = []
     if MUSIC_DIR.exists():
@@ -148,26 +199,37 @@ def create_clip(item: dict, output_name: str) -> Path:
     out_path = OUTPUT_DIR / f"{output_name}.mp4"
 
     with tempfile.TemporaryDirectory() as tmp:
-        img_path = Path(tmp) / "frame.jpg"
-        frame.save(img_path, "JPEG", quality=95)
+        tmp_path = Path(tmp)
+        global_frame = 0
+
+        for seg_idx, item in enumerate(items):
+            product_img = _download_image(item["imageUrl"])
+            seg_frames = _render_segment(product_img, item, frame_count=90)
+
+            for seg_frame in seg_frames:
+                frame_path = tmp_path / f"frame{global_frame:04d}.jpg"
+                seg_frame.save(frame_path, "JPEG", quality=90)
+                global_frame += 1
 
         if music:
             cmd = [
                 ffmpeg, "-y",
-                "-loop", "1", "-i", str(img_path),
+                "-framerate", str(FPS),
+                "-i", str(tmp_path / "frame%04d.jpg"),
                 "-i", music,
                 "-t", str(DURATION),
                 "-vf", f"scale={CLIP_SIZE[0]}:{CLIP_SIZE[1]},format=yuv420p",
                 "-c:v", "libx264", "-preset", "fast", "-crf", "23",
                 "-c:a", "aac", "-b:a", "128k",
-                "-af", "afade=t=out:st=6.5:d=0.5",
+                "-af", "afade=t=out:st=8.5:d=0.5",
                 "-shortest",
                 str(out_path),
             ]
         else:
             cmd = [
                 ffmpeg, "-y",
-                "-loop", "1", "-i", str(img_path),
+                "-framerate", str(FPS),
+                "-i", str(tmp_path / "frame%04d.jpg"),
                 "-t", str(DURATION),
                 "-vf", f"scale={CLIP_SIZE[0]}:{CLIP_SIZE[1]},format=yuv420p",
                 "-c:v", "libx264", "-preset", "fast", "-crf", "23",

@@ -94,18 +94,21 @@ def run_video_cycle():
     all_items = pick_top_items(items, n=min(len(items), 200))
     fresh = [it for it in all_items if str(it.get("itemId", "")) not in history]
 
-    if len(fresh) < CLIPS_PER_DAY:
+    if len(fresh) < CLIPS_PER_DAY * 3:
         log.warning("Video history nearly exhausted, resetting")
         history = set()
         fresh = all_items
 
-    clip_items = fresh[:CLIPS_PER_DAY]
+    # Batch into groups of 3 items per clip
+    clip_batches = [fresh[i:i + 3] for i in range(0, CLIPS_PER_DAY * 3, 3)][:CLIPS_PER_DAY]
 
     posted = 0
-    for i, item in enumerate(clip_items):
+    for i, batch in enumerate(clip_batches):
         try:
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-            clip_path = create_clip(item, f"clip_{ts}_{i}")
+            clip_path = create_clip(batch, f"clip_{ts}_{i}")
+            # Use first item for caption/title
+            item = batch[0]
             caption_data = generate_video_caption(item)
             caption = caption_data["caption"]
             title = item["itemName"][:100]
@@ -129,7 +132,9 @@ def run_video_cycle():
             except Exception as e:
                 log.error(f"Instagram Reel post {i} failed: {e}")
 
-            history.add(str(item.get("itemId", "")))
+            # Mark all batch items as seen
+            for it in batch:
+                history.add(str(it.get("itemId", "")))
             posted += 1
         except Exception as e:
             log.error(f"Video clip {i} failed: {e}")
