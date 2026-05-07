@@ -122,6 +122,13 @@ def run_video_cycle():
             except Exception as e:
                 log.error(f"YouTube post {i} failed: {e}")
 
+            try:
+                from instagram import post_reel_clip
+                post_reel_clip(clip_path, caption)
+                log.info(f"Instagram Reel posted: {item['itemName'][:40]}")
+            except Exception as e:
+                log.error(f"Instagram Reel post {i} failed: {e}")
+
             history.add(str(item.get("itemId", "")))
             posted += 1
         except Exception as e:
