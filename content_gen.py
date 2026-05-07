@@ -92,10 +92,16 @@ def generate_video_caption(item: dict) -> dict:
     else:
         formula = "POV"
 
+    # 30% chance of meme format regardless of price/rating
+    import random as _random
+    if _random.random() < 0.3:
+        formula = "MEME"
+
     formula_guide = {
         "PRICE_SHOCK": f"Hook: แค่ {price_display} บาท?! (price shock, stops scroll)",
         "SOCIAL_PROOF": f"Hook: ⭐{rating}/5 คนรีวิวเยอะมาก (social proof hook)",
         "POV": f"Hook: POV: เจอเสื้อผ้าน่ารักราคา {price_display} บาทใน Shopee 🥹",
+        "MEME": "Hook: เพื่อน: แต่งตัวดีขึ้นได้ยังไง? / ฉัน: (show product) 😅 (relatable meme format)",
     }[formula]
 
     prompt = f"""You are a viral Thai TikTok fashion creator for @trendyinthai.

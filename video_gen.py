@@ -181,6 +181,199 @@ def _render_segment(product_img: Image.Image, item: dict, frame_count: int = 90)
     return frames
 
 
+def create_price_reveal_clip(item: dict, output_name: str) -> Path:
+    """Render 9s single-product price-reveal video: question → price flash → CTA."""
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    ffmpeg = _ffmpeg_bin()
+
+    music_files: list = []
+    if MUSIC_DIR.exists():
+        music_files = list(MUSIC_DIR.glob("*.mp3")) + list(MUSIC_DIR.glob("*.m4a"))
+    music: Optional[str] = str(random.choice(music_files)) if music_files else None
+
+    out_path = OUTPUT_DIR / f"{output_name}.mp4"
+
+    product_img = _download_image(item["imageUrl"])
+    fullbleed = _make_fullbleed(product_img)
+    price = str(item.get("priceDisplay") or item.get("price", ""))
+    url = item.get("affiliateUrl", "")[:50]
+
+    font_wm = _get_font(36, thai=False)
+    font_question = _get_font(64, thai=True)
+    font_price = _get_font(140, thai=False)
+    font_cta = _get_font(60, thai=True)
+    font_url = _get_font(32, thai=False)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+
+        for n in range(270):
+            # Ken Burns zoom 1.0 → 1.1 over 270 frames
+            zoom = 1.0 + (n / 270) * 0.1
+            crop_w = int(CLIP_SIZE[0] / zoom)
+            crop_h = int(CLIP_SIZE[1] / zoom)
+            left = (CLIP_SIZE[0] - crop_w) // 2
+            top = (CLIP_SIZE[1] - crop_h) // 2
+            frame_img = fullbleed.crop((left, top, left + crop_w, top + crop_h)).resize(CLIP_SIZE, Image.LANCZOS)
+
+            draw = ImageDraw.Draw(frame_img)
+            # Watermark
+            draw.text((30, 50), "@trendyinthai", font=font_wm, fill=(255, 255, 255))
+
+            if n < 90:
+                # Segment 1: question
+                draw.text((540, 1420), "ราคาเท่าไหร่??", font=font_question, fill=(255, 255, 255), anchor="mm")
+            elif n < 180:
+                # Segment 2: price flash — even frames get semi-transparent dark overlay
+                if n % 2 == 0:
+                    overlay = Image.new("RGBA", CLIP_SIZE, (0, 0, 0, 0))
+                    ov_draw = ImageDraw.Draw(overlay)
+                    ov_draw.rectangle([(0, 0), CLIP_SIZE], fill=(0, 0, 0, int(255 * 0.15)))
+                    frame_rgba = frame_img.convert("RGBA")
+                    frame_rgba = Image.alpha_composite(frame_rgba, overlay)
+                    frame_img = frame_rgba.convert("RGB")
+                    draw = ImageDraw.Draw(frame_img)
+                    draw.text((30, 50), "@trendyinthai", font=font_wm, fill=(255, 255, 255))
+                draw.text((540, 1300), price, font=font_price, fill=(255, 77, 77), anchor="mm")
+            else:
+                # Segment 3: CTA
+                draw.text((540, 1380), "ได้เลยที่ Shopee", font=font_cta, fill=(255, 255, 255), anchor="mm")
+                draw.text((540, 1480), url, font=font_url, fill=(200, 200, 200), anchor="mm")
+
+            frame_img.save(tmp_path / f"frame{n:04d}.jpg", "JPEG", quality=90)
+
+        if music:
+            cmd = [
+                ffmpeg, "-y",
+                "-framerate", str(FPS),
+                "-i", str(tmp_path / "frame%04d.jpg"),
+                "-i", music,
+                "-t", str(DURATION),
+                "-vf", f"scale={CLIP_SIZE[0]}:{CLIP_SIZE[1]},format=yuv420p",
+                "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                "-c:a", "aac", "-b:a", "128k",
+                "-af", "afade=t=out:st=8.5:d=0.5",
+                "-shortest",
+                str(out_path),
+            ]
+        else:
+            cmd = [
+                ffmpeg, "-y",
+                "-framerate", str(FPS),
+                "-i", str(tmp_path / "frame%04d.jpg"),
+                "-t", str(DURATION),
+                "-vf", f"scale={CLIP_SIZE[0]}:{CLIP_SIZE[1]},format=yuv420p",
+                "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                str(out_path),
+            ]
+
+        subprocess.run(cmd, check=True, capture_output=True)
+
+    return out_path
+
+
+def create_countdown_clip(items: list, output_name: str) -> Path:
+    """Render 9s countdown clip — 5 products ranked 5→1, 1.8s each."""
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    ffmpeg = _ffmpeg_bin()
+
+    # Pad to exactly 5 items
+    if not items:
+        raise ValueError("create_countdown_clip requires at least one item")
+    items = (items * 5)[:5]
+
+    music_files: list = []
+    if MUSIC_DIR.exists():
+        music_files = list(MUSIC_DIR.glob("*.mp3")) + list(MUSIC_DIR.glob("*.m4a"))
+    music: Optional[str] = str(random.choice(music_files)) if music_files else None
+
+    out_path = OUTPUT_DIR / f"{output_name}.mp4"
+
+    font_wm = _get_font(36, thai=False)
+    font_num = _get_font(200, thai=False)
+    font_name = _get_font(44, thai=True)
+    font_price = _get_font(52, thai=False)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        global_frame = 0
+
+        for rank, item in enumerate(items):
+            product_img = _download_image(item["imageUrl"])
+            fullbleed = _make_fullbleed(product_img)
+
+            name = item.get("itemName", "")[:40]
+            name_lines = [name[i:i + 20] for i in range(0, len(name), 20)][:3]
+            price = str(item.get("priceDisplay") or item.get("price", ""))
+            countdown_num = str(5 - rank)
+
+            for f in range(54):
+                # Ken Burns zoom 1.0 → 1.05
+                zoom = 1.0 + (f / 54) * 0.05
+                crop_w = int(CLIP_SIZE[0] / zoom)
+                crop_h = int(CLIP_SIZE[1] / zoom)
+                left = (CLIP_SIZE[0] - crop_w) // 2
+                top = (CLIP_SIZE[1] - crop_h) // 2
+                frame_img = fullbleed.crop((left, top, left + crop_w, top + crop_h)).resize(CLIP_SIZE, Image.LANCZOS)
+
+                # Watermark
+                draw = ImageDraw.Draw(frame_img)
+                draw.text((30, 50), "@trendyinthai", font=font_wm, fill=(255, 255, 255))
+
+                # Semi-transparent countdown number (top-right) via RGBA layer
+                num_layer = Image.new("RGBA", CLIP_SIZE, (0, 0, 0, 0))
+                num_draw = ImageDraw.Draw(num_layer)
+                num_draw.text((900, 80), countdown_num, font=font_num, fill=(255, 255, 255, 180), anchor="rt")
+                frame_rgba = frame_img.convert("RGBA")
+                frame_rgba = Image.alpha_composite(frame_rgba, num_layer)
+                frame_img = frame_rgba.convert("RGB")
+
+                draw = ImageDraw.Draw(frame_img)
+                # Re-draw watermark after composite (composite resets draw target)
+                draw.text((30, 50), "@trendyinthai", font=font_wm, fill=(255, 255, 255))
+
+                # Product name
+                y = 1380
+                for line in name_lines:
+                    draw.text((540, y), line, font=font_name, fill=(255, 255, 255), anchor="mm")
+                    y += 60
+
+                # Price
+                draw.text((540, 1480), price, font=font_price, fill=(255, 77, 77), anchor="mm")
+
+                frame_img.save(tmp_path / f"frame{global_frame:04d}.jpg", "JPEG", quality=90)
+                global_frame += 1
+
+        if music:
+            cmd = [
+                ffmpeg, "-y",
+                "-framerate", str(FPS),
+                "-i", str(tmp_path / "frame%04d.jpg"),
+                "-i", music,
+                "-t", str(DURATION),
+                "-vf", f"scale={CLIP_SIZE[0]}:{CLIP_SIZE[1]},format=yuv420p",
+                "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                "-c:a", "aac", "-b:a", "128k",
+                "-af", "afade=t=out:st=8.5:d=0.5",
+                "-shortest",
+                str(out_path),
+            ]
+        else:
+            cmd = [
+                ffmpeg, "-y",
+                "-framerate", str(FPS),
+                "-i", str(tmp_path / "frame%04d.jpg"),
+                "-t", str(DURATION),
+                "-vf", f"scale={CLIP_SIZE[0]}:{CLIP_SIZE[1]},format=yuv420p",
+                "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                str(out_path),
+            ]
+
+        subprocess.run(cmd, check=True, capture_output=True)
+
+    return out_path
+
+
 def create_clip(items: list, output_name: str) -> Path:
     """Render 9s 1080x1920 MP4 — 3 products, 3 seconds each, Ken Burns zoom."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

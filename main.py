@@ -7,7 +7,8 @@ from shopee import get_trending_fashion, pick_top_items
 from content_gen import generate_caption, generate_reel_script, generate_video_caption
 from media_gen import create_post_image, create_reel
 from instagram import post_image, post_reel
-from video_gen import create_clip
+import random
+from video_gen import create_clip, create_price_reveal_clip, create_countdown_clip
 from tiktok import post_clip
 from youtube import post_short
 from config import POSTS_PER_DAY, REELS_PER_DAY, IMAGE_POSTS_PER_DAY, CLIPS_PER_DAY
@@ -102,11 +103,24 @@ def run_video_cycle():
     # Batch into groups of 3 items per clip
     clip_batches = [fresh[i:i + 3] for i in range(0, CLIPS_PER_DAY * 3, 3)][:CLIPS_PER_DAY]
 
+    CLIP_TYPES = ["multi", "price_reveal", "countdown"]
+
     posted = 0
     for i, batch in enumerate(clip_batches):
         try:
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-            clip_path = create_clip(batch, f"clip_{ts}_{i}")
+            clip_type = random.choice(CLIP_TYPES)
+
+            if clip_type == "price_reveal":
+                clip_path = create_price_reveal_clip(batch[0], f"clip_{ts}_{i}")
+            elif clip_type == "countdown":
+                five_items = fresh[i * 3: i * 3 + 5]
+                if len(five_items) < 5:
+                    five_items = (five_items * 5)[:5]
+                clip_path = create_countdown_clip(five_items, f"clip_{ts}_{i}")
+            else:
+                clip_path = create_clip(batch, f"clip_{ts}_{i}")
+
             # Use first item for caption/title
             item = batch[0]
             caption_data = generate_video_caption(item)
