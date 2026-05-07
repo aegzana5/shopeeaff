@@ -120,15 +120,25 @@ def _render_frame(base_canvas: Image.Image, frame_idx: int, item: dict) -> Image
     return frame
 
 
+def _make_fullbleed(product_img: Image.Image) -> Image.Image:
+    """Scale and center-crop product image to fill CLIP_SIZE exactly."""
+    img = product_img.copy()
+    scale = max(CLIP_SIZE[0] / img.width, CLIP_SIZE[1] / img.height)
+    new_w = int(img.width * scale)
+    new_h = int(img.height * scale)
+    img = img.resize((new_w, new_h), Image.LANCZOS)
+    left = (new_w - CLIP_SIZE[0]) // 2
+    top = (new_h - CLIP_SIZE[1]) // 2
+    return img.crop((left, top, left + CLIP_SIZE[0], top + CLIP_SIZE[1]))
+
+
 def create_clip(item: dict, output_name: str) -> Path:
-    """Render 7s 1080x1920 MP4 for item. Returns output path."""
+    """Render 7s 1080x1920 MP4 — full-bleed product image, no overlays."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     ffmpeg = _ffmpeg_bin()
 
     product_img = _download_image(item["imageUrl"])
-    bg = _make_background(product_img)
-    base_canvas = bg.copy()
-    _paste_product(base_canvas, product_img)
+    frame = _make_fullbleed(product_img)
 
     music_files: list = []
     if MUSIC_DIR.exists():
@@ -138,16 +148,13 @@ def create_clip(item: dict, output_name: str) -> Path:
     out_path = OUTPUT_DIR / f"{output_name}.mp4"
 
     with tempfile.TemporaryDirectory() as tmp:
-        frames_dir = Path(tmp)
-        for i in range(TOTAL_FRAMES):
-            frame = _render_frame(base_canvas, i, item)
-            frame.save(frames_dir / f"{i:04d}.jpg", "JPEG", quality=85)
+        img_path = Path(tmp) / "frame.jpg"
+        frame.save(img_path, "JPEG", quality=95)
 
         if music:
             cmd = [
                 ffmpeg, "-y",
-                "-framerate", str(FPS),
-                "-i", str(frames_dir / "%04d.jpg"),
+                "-loop", "1", "-i", str(img_path),
                 "-i", music,
                 "-t", str(DURATION),
                 "-vf", f"scale={CLIP_SIZE[0]}:{CLIP_SIZE[1]},format=yuv420p",
@@ -160,8 +167,7 @@ def create_clip(item: dict, output_name: str) -> Path:
         else:
             cmd = [
                 ffmpeg, "-y",
-                "-framerate", str(FPS),
-                "-i", str(frames_dir / "%04d.jpg"),
+                "-loop", "1", "-i", str(img_path),
                 "-t", str(DURATION),
                 "-vf", f"scale={CLIP_SIZE[0]}:{CLIP_SIZE[1]},format=yuv420p",
                 "-c:v", "libx264", "-preset", "fast", "-crf", "23",
