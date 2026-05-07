@@ -36,3 +36,10 @@ CLIPS_PER_DAY = int(os.getenv("CLIPS_PER_DAY", "3"))
 YOUTUBE_TOKEN_FILE = os.getenv("YOUTUBE_TOKEN_FILE", "assets/youtube_token.json")
 YOUTUBE_CLIENT_SECRETS = os.getenv("YOUTUBE_CLIENT_SECRETS", "assets/youtube_client_secrets.json")
 TIKTOK_SESSION_FILE = os.getenv("TIKTOK_SESSION_FILE", "assets/tiktok_session.json")
+
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
+ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")
+PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
+REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN", "")
+TTS_ENABLED = os.getenv("TTS_ENABLED", "true").lower() == "true"
+STOCK_MEDIA_ENABLED = os.getenv("STOCK_MEDIA_ENABLED", "true").lower() == "true"
