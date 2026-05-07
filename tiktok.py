@@ -20,7 +20,11 @@ def _load_cookies():
             "No TikTok session found. Run: python3 setup_tiktok.py"
         )
     data = json.loads(SESSION_FILE.read_text())
-    return data.get("cookies", [])
+    cookies = data.get("cookies", [])
+    for c in cookies:
+        c["secure"] = bool(c.get("secure", False))
+        c["httpOnly"] = bool(c.get("httpOnly", False))
+    return cookies
 
 
 def post_clip(video_path: Path, caption: str) -> str:
@@ -46,41 +50,54 @@ def post_clip(video_path: Path, caption: str) -> str:
 
         try:
             page.goto("https://www.tiktok.com/upload", wait_until="domcontentloaded", timeout=30000)
-            time.sleep(3)
+            time.sleep(5)
 
             if "login" in page.url:
                 raise RuntimeError("SESSION_EXPIRED")
 
-            # Upload file
-            upload_sel = None
-            for sel in ['input[type="file"]', '[class*="upload"]']:
-                if page.locator(sel).count() > 0:
-                    upload_sel = sel
-                    break
-            if upload_sel is None:
-                raise RuntimeError("TikTok upload: no file input found on upload page")
-
-            with page.expect_file_chooser(timeout=15000) as fc_info:
-                page.locator(upload_sel).first.click()
-            fc_info.value.set_files(str(video_path))
-            time.sleep(5)
-
-            # Fill caption
-            full_caption = f"{caption}\n\n{HASHTAGS}"
-            for sel in ['div[contenteditable="true"]', 'textarea']:
-                lc = page.locator(sel)
-                if lc.count() > 0:
-                    lc.first.click()
-                    page.keyboard.type(full_caption)
-                    break
+            # Dismiss blocking modals via JS (overlay intercepts Playwright pointer events)
+            page.evaluate("""
+                const texts = ['Cancel', 'Not now', 'Skip', 'Got it'];
+                document.querySelectorAll('button').forEach(btn => {
+                    if (texts.includes(btn.textContent.trim())) btn.click();
+                });
+            """)
             time.sleep(1)
 
-            # Post
-            for txt in ["Post", "投稿", "โพสต์"]:
-                lc = page.locator(f'button:has-text("{txt}")')
-                if lc.count() > 0:
-                    lc.last.click()
-                    break
+            # Upload file — direct input[type="file"] is faster than file chooser
+            file_input = page.locator('input[type="file"]')
+            if file_input.count() > 0:
+                file_input.first.set_input_files(str(video_path))
+            else:
+                # Fallback: trigger file chooser via upload button
+                upload_btn = page.locator('[class*="upload"],[class*="Upload"]')
+                if upload_btn.count() == 0:
+                    raise RuntimeError("TikTok upload: no file input found on upload page")
+                with page.expect_file_chooser(timeout=15000) as fc_info:
+                    upload_btn.first.click()
+                fc_info.value.set_files(str(video_path))
+            time.sleep(5)
+
+            # Fill caption via JS (modal overlay may still be fading out)
+            full_caption = f"{caption}\n\n{HASHTAGS}"
+            page.evaluate(f"""
+                const el = document.querySelector('div[contenteditable="true"]')
+                    || document.querySelector('textarea');
+                if (el) {{
+                    el.focus();
+                    document.execCommand('selectAll', false, null);
+                    document.execCommand('insertText', false, {json.dumps(full_caption)});
+                }}
+            """)
+            time.sleep(1)
+
+            # Post — use JS click to bypass any overlay
+            page.evaluate("""
+                const texts = ['Post', '投稿', 'โพสต์'];
+                const buttons = Array.from(document.querySelectorAll('button'));
+                const post = buttons.reverse().find(b => texts.includes(b.textContent.trim()));
+                if (post) post.click();
+            """)
             time.sleep(10)
 
             browser.close()
