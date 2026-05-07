@@ -9,6 +9,14 @@ from media_gen import create_post_image, create_reel
 from instagram import post_image, post_reel
 import random
 from video_gen import create_clip, create_price_reveal_clip, create_countdown_clip
+from viral_gen import (
+    create_before_after_clip,
+    create_pov_meme_clip,
+    create_price_shock_clip,
+    create_beat_hook_clip,
+)
+import tts
+import stock_media
 from tiktok import post_clip
 from youtube import post_short
 from config import POSTS_PER_DAY, REELS_PER_DAY, IMAGE_POSTS_PER_DAY, CLIPS_PER_DAY
@@ -103,26 +111,47 @@ def run_video_cycle():
     # Batch into groups of 3 items per clip
     clip_batches = [fresh[i:i + 3] for i in range(0, CLIPS_PER_DAY * 3, 3)][:CLIPS_PER_DAY]
 
-    CLIP_TYPES = ["multi", "price_reveal", "countdown"]
+    CLIP_TYPES = [
+        "multi", "price_reveal", "countdown",
+        "before_after", "pov_meme", "price_shock", "beat_hook",
+    ]
 
     posted = 0
     for i, batch in enumerate(clip_batches):
         try:
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             clip_type = random.choice(CLIP_TYPES)
+            clip_name = f"clip_{ts}_{i}"
+            item = batch[0]
+
+            keywords = stock_media._extract_keywords(item["itemName"])
+            vo_path = tts.generate_voiceover(item, clip_name)
+            bg_path = stock_media.fetch_bg_video(keywords, clip_name)
 
             if clip_type == "price_reveal":
-                clip_path = create_price_reveal_clip(batch[0], f"clip_{ts}_{i}")
+                clip_path = create_price_reveal_clip(
+                    item, clip_name, voiceover_path=vo_path, bg_video_path=bg_path
+                )
             elif clip_type == "countdown":
                 five_items = fresh[i * 3: i * 3 + 5]
                 if len(five_items) < 5:
                     five_items = (five_items * 5)[:5]
-                clip_path = create_countdown_clip(five_items, f"clip_{ts}_{i}")
+                clip_path = create_countdown_clip(
+                    five_items, clip_name, voiceover_path=vo_path, bg_video_path=bg_path
+                )
+            elif clip_type == "before_after":
+                clip_path = create_before_after_clip(item, clip_name)
+            elif clip_type == "pov_meme":
+                clip_path = create_pov_meme_clip(item, clip_name)
+            elif clip_type == "price_shock":
+                clip_path = create_price_shock_clip(item, clip_name)
+            elif clip_type == "beat_hook":
+                clip_path = create_beat_hook_clip(item, clip_name)
             else:
-                clip_path = create_clip(batch, f"clip_{ts}_{i}")
+                clip_path = create_clip(
+                    batch, clip_name, voiceover_path=vo_path, bg_video_path=bg_path
+                )
 
-            # Use first item for caption/title
-            item = batch[0]
             caption_data = generate_video_caption(item)
             caption = caption_data["caption"]
             title = item["itemName"][:100]
