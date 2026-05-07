@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -64,6 +65,23 @@ def run_post_cycle():
     log.info(f"Cycle done: {posted}/{POSTS_PER_DAY} posted")
 
 
+_VIDEO_HISTORY = Path("assets/video_history.json")
+_VIDEO_HISTORY_MAX = 90  # keep last 90 posted item IDs
+
+
+def _load_video_history() -> set:
+    if _VIDEO_HISTORY.exists():
+        return set(json.loads(_VIDEO_HISTORY.read_text()))
+    return set()
+
+
+def _save_video_history(history: set) -> None:
+    items_list = list(history)[-_VIDEO_HISTORY_MAX:]
+    tmp = _VIDEO_HISTORY.with_suffix(".tmp")
+    tmp.write_text(json.dumps(items_list))
+    tmp.rename(_VIDEO_HISTORY)
+
+
 def run_video_cycle():
     log.info("Starting video cycle")
 
@@ -72,8 +90,16 @@ def run_video_cycle():
         log.error("No items from Shopee feed")
         return
 
-    clip_items = pick_top_items(items, n=POSTS_PER_DAY + CLIPS_PER_DAY + 5)[POSTS_PER_DAY:]
-    clip_items = clip_items[:CLIPS_PER_DAY]
+    history = _load_video_history()
+    all_items = pick_top_items(items, n=min(len(items), 200))
+    fresh = [it for it in all_items if str(it.get("itemId", "")) not in history]
+
+    if len(fresh) < CLIPS_PER_DAY:
+        log.warning("Video history nearly exhausted, resetting")
+        history = set()
+        fresh = all_items
+
+    clip_items = fresh[:CLIPS_PER_DAY]
 
     posted = 0
     for i, item in enumerate(clip_items):
@@ -96,10 +122,12 @@ def run_video_cycle():
             except Exception as e:
                 log.error(f"YouTube post {i} failed: {e}")
 
+            history.add(str(item.get("itemId", "")))
             posted += 1
         except Exception as e:
             log.error(f"Video clip {i} failed: {e}")
 
+    _save_video_history(history)
     log.info(f"Video cycle done: {posted}/{CLIPS_PER_DAY} clips")
 
 
