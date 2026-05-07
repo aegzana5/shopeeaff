@@ -84,30 +84,12 @@ def create_pov_meme_clip(item: dict, output_name: str) -> Path:
             draw = ImageDraw.Draw(frame_img)
             draw.text((30, 50), "@trendyinthai", font=font_wm, fill=(255, 255, 255))
 
-            if n < 90:
-                try:
-                    draw.text((540, 260), f"POV: เจอ", font=font_pov,
-                               fill=(255, 255, 255), anchor="mm")
-                    draw.text((540, 330), name, font=font_pov,
-                               fill=(255, 255, 0), anchor="mm")
-                    draw.text((540, 400), "🥹", font=font_pov,
-                               fill=(255, 255, 255), anchor="mm")
-                except Exception:
-                    pass
-            elif n < 180:
-                draw.text((540, 1300), price, font=font_price,
-                           fill=BRAND_COLOR, anchor="mm")
-                try:
-                    draw.text((540, 1400), "บาท!! ใน Shopee", font=font_cta,
-                               fill=(255, 255, 255), anchor="mm")
-                except Exception:
-                    pass
-            else:
-                try:
-                    draw.text((540, 1420), "ลิ้งค์ด้านล่าง 👇", font=font_cta,
-                               fill=(255, 255, 255), anchor="mm")
-                except Exception:
-                    pass
+            try:
+                pov_text = f"POV: เจอ {name[:30]} ราคา {price} ใน Shopee 🥹"
+                draw.text((540, 960), pov_text, font=font_pov,
+                           fill=(255, 255, 255), anchor="mm")
+            except Exception:
+                pass
             return frame_img
 
         _render_viral_frames(tmp_path, render_frame)
