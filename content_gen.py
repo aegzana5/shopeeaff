@@ -71,7 +71,7 @@ Return ONLY the caption text, no labels."""
     }
 
 
-def generate_video_caption(item: dict) -> dict:
+def generate_video_caption(item: dict, extra_hooks: list = None) -> dict:
     """Generate TikTok-native caption: scroll-stop hook + body + CTA + hashtags."""
     price = item.get("priceDisplay") or item.get("priceMin") or item.get("price", "")
     if isinstance(price, (int, float)) and price > 1000:
@@ -92,7 +92,6 @@ def generate_video_caption(item: dict) -> dict:
     else:
         formula = "POV"
 
-    # 30% chance of meme format regardless of price/rating
     import random as _random
     if _random.random() < 0.3:
         formula = "MEME"
@@ -104,12 +103,18 @@ def generate_video_caption(item: dict) -> dict:
         "MEME": "Hook: เพื่อน: แต่งตัวดีขึ้นได้ยังไง? / ฉัน: (show product) 😅 (relatable meme format)",
     }[formula]
 
+    hooks_section = ""
+    if extra_hooks:
+        hooks_section = "\nTrending hooks from viral posts (consider adapting one of these):\n" + "\n".join(
+            f"- {h}" for h in extra_hooks[:3]
+        )
+
     prompt = f"""You are a viral Thai TikTok fashion creator for @trendyinthai.
 
 Product: {item['itemName']}
 Price: {price_display}
 Rating: {rating} stars
-Formula: {formula_guide}
+Formula: {formula_guide}{hooks_section}
 
 Write a TikTok caption (Thai-primary):
 
