@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
-from config import TIKTOK_SESSION_FILE
+from config import TIKTOK_SESSION_FILE, TIKTOK_ENABLED
 
 SESSION_FILE = Path(TIKTOK_SESSION_FILE)
 
@@ -29,6 +29,8 @@ def _load_cookies():
 
 def post_clip(video_path: Path, caption: str) -> str:
     """Upload clip to TikTok. Returns 'posted' on success."""
+    if not TIKTOK_ENABLED:
+        raise RuntimeError("TikTok posting disabled (TIKTOK_ENABLED=false)")
     video_path = Path(video_path).absolute()
     cookies = _load_cookies()
 
