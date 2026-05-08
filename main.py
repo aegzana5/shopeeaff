@@ -19,7 +19,10 @@ import tts
 import stock_media
 from tiktok import post_clip
 from youtube import post_short
-from config import POSTS_PER_DAY, REELS_PER_DAY, IMAGE_POSTS_PER_DAY, CLIPS_PER_DAY
+from config import POSTS_PER_DAY, REELS_PER_DAY, IMAGE_POSTS_PER_DAY, CLIPS_PER_DAY, TREND_RESHARE_ENABLED
+from trend_discovery import discover_all
+from trend_reshare import reshare_story, find_shopee_match, generate_affiliate_clip, post_affiliate_clip
+from trend_signals import extract_signals, save_signals, load_signals
 
 logging.basicConfig(
     level=logging.INFO,
@@ -94,6 +97,9 @@ def _save_video_history(history: set) -> None:
 def run_video_cycle():
     log.info("Starting video cycle")
 
+    signals = load_signals()
+    trending_hooks = signals.get("hooks", [])
+
     items = get_trending_fashion()
     if not items:
         log.error("No items from Shopee feed")
@@ -115,6 +121,7 @@ def run_video_cycle():
         "multi", "price_reveal", "countdown",
         "before_after", "pov_meme", "price_shock", "beat_hook",
     ]
+    CLIP_TYPES = CLIP_TYPES + signals.get("top_clip_types", [])
 
     posted = 0
     for i, batch in enumerate(clip_batches):
@@ -152,7 +159,7 @@ def run_video_cycle():
                         batch, clip_name, voiceover_path=vo_path, bg_video_path=bg_path
                     )
 
-            caption_data = generate_video_caption(item)
+            caption_data = generate_video_caption(item, extra_hooks=trending_hooks or None)
             caption = caption_data["caption"]
             title = item["itemName"][:100]
 
@@ -186,6 +193,30 @@ def run_video_cycle():
     log.info(f"Video cycle done: {posted}/{CLIPS_PER_DAY} clips")
 
 
+def run_trend_cycle():
+    log.info("Starting trend cycle")
+
+    posts = discover_all()
+    if not posts:
+        log.info("No viral posts found, skipping trend cycle")
+        return
+
+    for post in posts:
+        try:
+            if TREND_RESHARE_ENABLED:
+                reshare_story(post)
+            item = find_shopee_match(post)
+            if item:
+                clip = generate_affiliate_clip(item, post)
+                post_affiliate_clip(clip, item)
+        except Exception as e:
+            log.error("Trend post %s failed: %s", post["post_id"], e)
+
+    signals = extract_signals(posts)
+    save_signals(signals)
+    log.info("Trend cycle done: %d posts processed", len(posts))
+
+
 def _parse_script(raw: str) -> dict:
     result = {}
     for line in raw.splitlines():
@@ -198,3 +229,4 @@ def _parse_script(raw: str) -> dict:
 if __name__ == "__main__":
     run_post_cycle()
     run_video_cycle()
+    run_trend_cycle()
