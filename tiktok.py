@@ -119,29 +119,40 @@ def update_bio(link: str) -> bool:
         ctx.add_cookies(cookies)
         page = ctx.new_page()
         try:
-            page.goto("https://www.tiktok.com/setting", wait_until="networkidle", timeout=30000)
+            # Get own profile URL via home page nav-profile link
+            page.goto("https://www.tiktok.com/", wait_until="networkidle", timeout=30000)
             if "login" in page.url:
                 browser.close()
                 return False
-            # Navigate to profile edit
-            page.goto("https://www.tiktok.com/@me/edit", wait_until="networkidle", timeout=30000)
+            profile_href = page.locator('[data-e2e="nav-profile"]').get_attribute("href")
+            if not profile_href:
+                browser.close()
+                return False
+            # Navigate directly to profile page (avoid modal timing issues)
+            page.goto(f"https://www.tiktok.com{profile_href}", wait_until="networkidle", timeout=30000)
             time.sleep(2)
-            # Find bio textarea
-            bio_field = page.locator('textarea[name="bio"], textarea[placeholder*="bio" i], div[data-e2e="bio-input"]').first
-            if bio_field.count() == 0:
-                # Try generic textarea
-                bio_field = page.locator("textarea").first
+            page.keyboard.press("Escape")
+            time.sleep(0.5)
+            # Click Edit profile button
+            edit_btn = page.locator('[data-e2e="edit-profile-entrance"]').first
+            if edit_btn.count() == 0:
+                browser.close()
+                return False
+            edit_btn.dispatch_event("click")
+            time.sleep(2)
+            # Fill bio
+            bio_field = page.locator('textarea[placeholder="Bio"]').first
             if bio_field.count() == 0:
                 browser.close()
                 return False
-            bio_field.triple_click()
-            bio_field.fill(link)
+            bio_field.click(click_count=3)
+            bio_field.fill(link[:80])
             time.sleep(1)
             # Save
             for save_txt in ["Save", "บันทึก", "保存"]:
                 btn = page.locator(f'button:has-text("{save_txt}")')
                 if btn.count() > 0:
-                    btn.first.click()
+                    btn.first.dispatch_event("click")
                     break
             time.sleep(2)
             browser.close()
