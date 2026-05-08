@@ -223,12 +223,6 @@ def run_video_cycle():
                     )
 
             try:
-                video_id = post_short(clip_path, title, caption_with_link)
-                log.info(f"YouTube Short posted: {video_id}")
-            except Exception as e:
-                log.error(f"YouTube post {i} failed: {e}")
-
-            try:
                 from instagram import post_reel_clip
                 post_reel_clip(clip_path, caption_with_link)
                 log.info(f"Instagram Reel posted: {item['itemName'][:40]}")
