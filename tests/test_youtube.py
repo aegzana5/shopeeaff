@@ -36,6 +36,7 @@ def test_post_short_returns_video_id(tmp_path):
     with patch("youtube.YOUTUBE_CLIENT_SECRETS", str(secrets_file)), \
          patch("youtube.YOUTUBE_TOKEN_FILE", str(tmp_path / "token.json")), \
          patch("youtube._get_service", return_value=mock_youtube), \
+         patch("youtube._prepare_yt_video", return_value=video_file), \
          patch("googleapiclient.http.MediaFileUpload") as mock_media:
         video_id = post_short(video_file, "My Product", "Great product description")
         assert video_id == "abc123"
@@ -56,6 +57,7 @@ def test_post_short_title_gets_shorts_hashtag(tmp_path):
     mock_youtube.videos.return_value = mock_videos
 
     with patch("youtube._get_service", return_value=mock_youtube), \
+         patch("youtube._prepare_yt_video", return_value=video_file), \
          patch("googleapiclient.http.MediaFileUpload"):
         post_short(video_file, "My Product Name", "desc")
         call_kwargs = mock_videos.insert.call_args[1]
@@ -79,6 +81,7 @@ def test_post_short_description_has_shorts_hashtag(tmp_path):
     mock_youtube.videos.return_value = mock_videos
 
     with patch("youtube._get_service", return_value=mock_youtube), \
+         patch("youtube._prepare_yt_video", return_value=video_file), \
          patch("googleapiclient.http.MediaFileUpload"):
         post_short(video_file, "Product", "My description")
         call_kwargs = mock_videos.insert.call_args[1]

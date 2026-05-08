@@ -4,6 +4,8 @@ import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch, mock_open
 
+pytest.importorskip("playwright", reason="playwright not installed")
+
 
 # ---------------------------------------------------------------------------
 # test_load_cookies_raises_if_no_session_file
