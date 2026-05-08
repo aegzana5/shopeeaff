@@ -169,12 +169,12 @@ def _do_post(page, image_path: Path, caption: str):
             time.sleep(1)
             break
 
-    for txt in ["Share", "โพสต์"]:
-        lc = page.get_by_role("button", name=txt)
-        if lc.count() > 0:
-            lc.last.dispatch_event("click")
+    page.evaluate("() => { [...document.querySelectorAll('[role=\"dialog\"] [role=\"button\"]')].find(b => b.innerText.trim() === 'Share')?.click() }")
+    for _ in range(15):
+        time.sleep(2)
+        dlg = page.evaluate("() => { let d = document.querySelector('[role=\"dialog\"]'); return d ? d.innerText : ''; }")
+        if "Post shared" in dlg or "Your post" in dlg:
             break
-    time.sleep(10)
 
 
 def post_reel(video_path: Path, caption: str) -> str:
@@ -243,12 +243,12 @@ def post_reel_clip(video_path: Path, caption: str) -> str:
                     break
 
             # Share
-            for txt in ["Share", "โพสต์", "发布"]:
-                lc = page.get_by_role("button", name=txt)
-                if lc.count() > 0:
-                    lc.last.dispatch_event("click")
+            page.evaluate("() => { [...document.querySelectorAll('[role=\"dialog\"] [role=\"button\"]')].find(b => b.innerText.trim() === 'Share')?.click() }")
+            for _ in range(15):
+                time.sleep(2)
+                dlg = page.evaluate("() => { let d = document.querySelector('[role=\"dialog\"]'); return d ? d.innerText : ''; }")
+                if "Post shared" in dlg or "Your post" in dlg:
                     break
-            time.sleep(12)
 
             ctx.storage_state(path=str(STATE_FILE))
             browser.close()
