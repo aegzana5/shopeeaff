@@ -43,8 +43,16 @@ def run_post_cycle():
         log.error("No items from Shopee")
         return
 
-    top_items = pick_top_items(items, n=POSTS_PER_DAY + 2)
-    log.info(f"{len(top_items)} items selected")
+    post_history = _load_post_history()
+    all_top = pick_top_items(items, n=min(len(items), 200))
+    fresh = [it for it in all_top if str(it.get("itemId", "")) not in post_history]
+    if len(fresh) < IMAGE_POSTS_PER_DAY:
+        log.warning("Post history nearly exhausted, resetting")
+        post_history = set()
+        fresh = all_top
+
+    top_items = fresh[:POSTS_PER_DAY + 2]
+    log.info(f"{len(top_items)} fresh items selected")
 
     image_items = top_items[:IMAGE_POSTS_PER_DAY]
     reel_batches = [top_items[IMAGE_POSTS_PER_DAY:IMAGE_POSTS_PER_DAY+3]] * REELS_PER_DAY
@@ -58,6 +66,7 @@ def run_post_cycle():
             caption_data = generate_caption(item, post_type="image")
             media_id = post_image(img_path, caption_data["caption"])
             log.info(f"Image posted: {media_id} — {item['itemName'][:40]}")
+            post_history.add(str(item.get("itemId", "")))
             posted += 1
         except Exception as e:
             log.error(f"Image post {i} failed: {e}")
@@ -70,18 +79,37 @@ def run_post_cycle():
             caption_data = generate_caption(reel_items[0], post_type="reel")
             media_id = post_reel(reel_path, caption_data["caption"])
             log.info(f"Reel posted: {media_id}")
+            for ri in reel_items:
+                post_history.add(str(ri.get("itemId", "")))
             posted += 1
         except Exception as e:
             log.error(f"Reel {j} failed: {e}")
 
+    _save_post_history(post_history)
     log.info(f"Cycle done: {posted}/{POSTS_PER_DAY} posted")
 
+
+_POST_HISTORY = Path("assets/post_history.json")
+_POST_HISTORY_MAX = 50
 
 _VIDEO_HISTORY = Path("assets/video_history.json")
 _VIDEO_HISTORY_MAX = 90  # keep last 90 posted item IDs
 
 _TREND_HISTORY = Path("assets/trend_history.json")
 _TREND_HISTORY_MAX = 500
+
+
+def _load_post_history() -> set:
+    if _POST_HISTORY.exists():
+        return set(json.loads(_POST_HISTORY.read_text()))
+    return set()
+
+
+def _save_post_history(history: set) -> None:
+    items_list = list(history)[-_POST_HISTORY_MAX:]
+    tmp = _POST_HISTORY.with_suffix(".tmp")
+    tmp.write_text(json.dumps(items_list))
+    tmp.rename(_POST_HISTORY)
 
 
 def _load_trend_history() -> set:
