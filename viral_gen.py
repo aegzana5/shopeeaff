@@ -369,6 +369,102 @@ def create_beat_hook_clip(item: dict, output_name: str, voiceover_path: "Path | 
     return out_path
 
 
+def create_outfit_clip(
+    main_item: dict,
+    matches: list,
+    output_name: str,
+    model_image_path: "Optional[Path]" = None,
+    voiceover_path: "Optional[Path]" = None,
+) -> Path:
+    """Outfit combo clip: hero model/product frame then matching items, 9s total."""
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    ffmpeg = _ffmpeg_bin()
+    music = _pick_music()
+    vo_path = voiceover_path or tts.generate_voiceover(main_item, output_name)
+
+    all_items = [main_item] + matches
+
+    def _load_item_img(item: dict) -> Image.Image:
+        try:
+            return _download_image(item["imageUrl"])
+        except Exception:
+            return Image.new("RGB", (600, 800), (40, 40, 40))
+
+    # Load images
+    if model_image_path and model_image_path.exists():
+        from PIL import Image as _PIL
+        hero_img = _PIL.open(model_image_path).convert("RGB").resize(CLIP_SIZE, _PIL.LANCZOS)
+    else:
+        hero_img = _make_fullbleed(_load_item_img(main_item))
+
+    item_imgs = [_load_item_img(it) for it in all_items]
+
+    font_wm = _get_font(36, thai=False)
+    font_name = _get_font(44, thai=True)
+    font_price = _get_font(52, thai=False)
+    font_label = _get_font(38, thai=True)
+
+    # Segment lengths: hero=120 frames, then split remaining across matches
+    hero_frames = 120
+    per_item_frames = (DURATION * FPS - hero_frames) // max(len(all_items), 1)
+
+    out_path = OUTPUT_DIR / f"{output_name}.mp4"
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        n = 0
+
+        # Hero segment: model/product big reveal
+        for f in range(hero_frames):
+            zoom = 1.0 + (f / hero_frames) * 0.05
+            crop_w = int(CLIP_SIZE[0] / zoom)
+            crop_h = int(CLIP_SIZE[1] / zoom)
+            left = (CLIP_SIZE[0] - crop_w) // 2
+            top = (CLIP_SIZE[1] - crop_h) // 2
+            frame = hero_img.crop((left, top, left + crop_w, top + crop_h)).resize(CLIP_SIZE, Image.LANCZOS)
+            draw = ImageDraw.Draw(frame)
+            draw.text((30, 50), "@trendyinthai", font=font_wm, fill=(255, 255, 255))
+            draw.text((540, 1800), "OUTFIT COMBO 🔥", font=font_label, fill=(255, 220, 50), anchor="mm")
+            frame.save(tmp_path / f"frame{n:04d}.jpg", "JPEG", quality=90)
+            n += 1
+
+        # Per-item segments
+        for idx, item in enumerate(all_items):
+            base = _make_fullbleed(item_imgs[idx])
+            name = item.get("itemName", "")[:30]
+            price = str(item.get("priceDisplay") or item.get("price", ""))
+            label = ["👗 Main", "👟 Match 1", "👜 Match 2"][min(idx, 2)]
+
+            for f in range(per_item_frames):
+                zoom = 1.0 + (f / per_item_frames) * 0.04
+                crop_w = int(CLIP_SIZE[0] / zoom)
+                crop_h = int(CLIP_SIZE[1] / zoom)
+                left = (CLIP_SIZE[0] - crop_w) // 2
+                top = (CLIP_SIZE[1] - crop_h) // 2
+                frame = base.crop((left, top, left + crop_w, top + crop_h)).resize(CLIP_SIZE, Image.LANCZOS)
+                _paste_product(frame, item_imgs[idx])
+                draw = ImageDraw.Draw(frame)
+                draw.text((30, 50), "@trendyinthai", font=font_wm, fill=(255, 255, 255))
+                draw.text((540, 1350), label, font=font_label, fill=(255, 220, 50), anchor="mm")
+                draw.text((540, 1430), name, font=font_name, fill=(255, 255, 255), anchor="mm")
+                draw.text((540, 1510), price, font=font_price, fill=(255, 77, 77), anchor="mm")
+                frame.save(tmp_path / f"frame{n:04d}.jpg", "JPEG", quality=90)
+                n += 1
+
+        # Pad to full duration
+        while n < DURATION * FPS:
+            last = tmp_path / f"frame{n-1:04d}.jpg"
+            (tmp_path / f"frame{n:04d}.jpg").write_bytes(last.read_bytes())
+            n += 1
+
+        cmd = _build_ffmpeg_cmd(ffmpeg, tmp_path, out_path, music, vo_path)
+        subprocess.run(cmd, check=True, capture_output=True)
+        if vo_path:
+            out_path.with_suffix(".vo.path").write_text(str(vo_path))
+
+    return out_path
+
+
 def _get_bpm(music_path: Optional[str]) -> float:
     if music_path is None:
         return 120.0

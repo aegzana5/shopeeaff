@@ -149,6 +149,57 @@ Return ONLY the caption (4 lines, no hashtags)."""
     }
 
 
+def generate_outfit_caption(main_item: dict, matches: list) -> dict:
+    """Generate outfit combination caption for all items."""
+    def fmt_price(it):
+        p = it.get("priceDisplay") or it.get("priceMin") or it.get("price", "")
+        if isinstance(p, (int, float)) and p > 1000:
+            return f"฿{float(p)/100000:.0f}"
+        return str(p) if p else ""
+
+    items_block = "\n".join(
+        f"- {it['itemName'][:40]} {fmt_price(it)}"
+        for it in [main_item] + matches
+    )
+
+    prompt = f"""Viral Thai TikTok outfit combo caption. Showing a complete outfit.
+
+Items:
+{items_block}
+
+Rules:
+- LINE 1: Short scroll-stop hook about the outfit combo (Thai, under 40 chars)
+- LINE 2-3: Why this combo slaps, casual Thai gen-z tone, like texting a friend
+- LINE 4: "ลิ้งค์ใน bio นะ 🔗"
+- No hashtags, no corporate speak
+- Sound like someone who just discovered the perfect affordable outfit
+
+Return ONLY the caption (4 lines)."""
+
+    message = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=280,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    caption_body = message.content[0].text.strip()
+    hashtags = " ".join(HASHTAGS_TIKTOK)
+
+    link_lines = "\n".join(
+        f"🛒 {it['itemName'][:25]}: {it['affiliateUrl']}"
+        for it in [main_item] + matches
+        if it.get("affiliateUrl")
+    )
+    full_caption = f"{caption_body}\n\n{hashtags}"
+
+    return {
+        "caption": full_caption,
+        "caption_body": caption_body,
+        "caption_with_links": f"{full_caption}\n{link_lines}" if link_lines else full_caption,
+        "hashtags": hashtags,
+        "affiliate_urls": {it["itemName"][:25]: it.get("affiliateUrl", "") for it in [main_item] + matches},
+    }
+
+
 def generate_reel_script(items: list[dict]) -> str:
     """Generate short script/text overlays for 5-sec reel featuring multiple items."""
     names = [item["itemName"][:40] for item in items[:3]]

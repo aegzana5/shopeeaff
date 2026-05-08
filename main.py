@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 from shopee import get_trending_fashion, pick_top_items
-from content_gen import generate_caption, generate_reel_script, generate_video_caption
+from content_gen import generate_caption, generate_reel_script, generate_video_caption, generate_outfit_caption
 from media_gen import create_post_image, create_reel
 from instagram import post_image, post_reel
 import random
@@ -14,12 +14,13 @@ from viral_gen import (
     create_pov_meme_clip,
     create_price_shock_clip,
     create_beat_hook_clip,
+    create_outfit_clip,
 )
 import tts
 import stock_media
 from tiktok import post_clip
 from youtube import post_short
-from config import POSTS_PER_DAY, REELS_PER_DAY, IMAGE_POSTS_PER_DAY, CLIPS_PER_DAY, TREND_RESHARE_ENABLED
+from config import POSTS_PER_DAY, REELS_PER_DAY, IMAGE_POSTS_PER_DAY, CLIPS_PER_DAY, TREND_RESHARE_ENABLED, OUTFIT_MATCHES
 from trend_discovery import discover_all
 from trend_reshare import reshare_story, find_shopee_match, generate_affiliate_clip, post_affiliate_clip
 from trend_signals import extract_signals, save_signals, load_signals
@@ -173,6 +174,7 @@ def run_video_cycle():
 
     CLIP_TYPES = [
         "price_reveal", "before_after", "pov_meme", "price_shock", "beat_hook",
+        "outfit", "outfit",  # weighted double for higher frequency
     ]
     CLIP_TYPES = CLIP_TYPES + signals.get("top_clip_types", [])
 
@@ -183,32 +185,47 @@ def run_video_cycle():
             clip_type = random.choice(CLIP_TYPES)
             clip_name = f"clip_{ts}_{i}"
 
-            # Generate caption first so TTS can read it
-            caption_data = generate_video_caption(item, extra_hooks=trending_hooks or None)
-            caption = caption_data["caption"]
-            caption_body = caption_data.get("caption_body", caption)
-            title = item["itemName"][:100]
-            affiliate_url = caption_data.get("affiliate_url", "")
-            caption_with_link = _inject_link(caption, affiliate_url)
-
-            # TTS reads the actual caption (Thai gen-z hook + body)
-            vo_path = tts.generate_voiceover_from_text(caption_body, clip_name)
-
-            keywords = stock_media._extract_keywords(item["itemName"])
-            bg_path = stock_media.fetch_bg_video(keywords, clip_name)
-
-            if clip_type == "before_after":
-                clip_path = create_before_after_clip(item, clip_name, voiceover_path=vo_path)
-            elif clip_type == "pov_meme":
-                clip_path = create_pov_meme_clip(item, clip_name, voiceover_path=vo_path)
-            elif clip_type == "price_shock":
-                clip_path = create_price_shock_clip(item, clip_name, voiceover_path=vo_path)
-            elif clip_type == "beat_hook":
-                clip_path = create_beat_hook_clip(item, clip_name, voiceover_path=vo_path)
-            else:
-                clip_path = create_price_reveal_clip(
-                    item, clip_name, voiceover_path=vo_path, bg_video_path=bg_path
+            if clip_type == "outfit":
+                # Outfit clip: find matching products, generate model image, combined caption
+                from outfit_matcher import find_outfit_matches
+                from image_ai import generate_model_image, remove_bg
+                matches = find_outfit_matches(item, n=OUTFIT_MATCHES)
+                caption_data = generate_outfit_caption(item, matches)
+                caption = caption_data["caption"]
+                caption_body = caption_data.get("caption_body", caption)
+                title = item["itemName"][:100]
+                caption_with_link = caption_data.get("caption_with_links", caption)
+                affiliate_url = item.get("affiliateUrl", "")
+                vo_path = tts.generate_voiceover_from_text(caption_body, clip_name)
+                model_img = generate_model_image(item, clip_name) or remove_bg(item.get("imageUrl", ""), clip_name)
+                clip_path = create_outfit_clip(
+                    item, matches, clip_name,
+                    model_image_path=model_img,
+                    voiceover_path=vo_path,
                 )
+            else:
+                # Standard single-item clip
+                caption_data = generate_video_caption(item, extra_hooks=trending_hooks or None)
+                caption = caption_data["caption"]
+                caption_body = caption_data.get("caption_body", caption)
+                title = item["itemName"][:100]
+                affiliate_url = caption_data.get("affiliate_url", "")
+                caption_with_link = _inject_link(caption, affiliate_url)
+                vo_path = tts.generate_voiceover_from_text(caption_body, clip_name)
+                keywords = stock_media._extract_keywords(item["itemName"])
+                bg_path = stock_media.fetch_bg_video(keywords, clip_name)
+                if clip_type == "before_after":
+                    clip_path = create_before_after_clip(item, clip_name, voiceover_path=vo_path)
+                elif clip_type == "pov_meme":
+                    clip_path = create_pov_meme_clip(item, clip_name, voiceover_path=vo_path)
+                elif clip_type == "price_shock":
+                    clip_path = create_price_shock_clip(item, clip_name, voiceover_path=vo_path)
+                elif clip_type == "beat_hook":
+                    clip_path = create_beat_hook_clip(item, clip_name, voiceover_path=vo_path)
+                else:
+                    clip_path = create_price_reveal_clip(
+                        item, clip_name, voiceover_path=vo_path, bg_video_path=bg_path
+                    )
 
             try:
                 if affiliate_url:

@@ -42,6 +42,10 @@ ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
 REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN", "")
+PHOTOROOM_API_KEY = os.getenv("PHOTOROOM_API_KEY", "")
+REMOVEBG_API_KEY = os.getenv("REMOVEBG_API_KEY", "")
+FAL_API_KEY = os.getenv("FAL_API_KEY", "")
+OUTFIT_MATCHES = int(os.getenv("OUTFIT_MATCHES", "2"))
 TTS_ENABLED = os.getenv("TTS_ENABLED", "true").lower() == "true"
 STOCK_MEDIA_ENABLED = os.getenv("STOCK_MEDIA_ENABLED", "true").lower() == "true"
 
