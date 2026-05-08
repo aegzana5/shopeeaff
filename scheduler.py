@@ -5,7 +5,25 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 import pytz
 
+import glob, shutil
 from main import run_post_cycle, run_video_cycle, run_trend_cycle
+
+
+def _cleanup_outputs():
+    """Delete generated clips/images older than 1 day to free disk space."""
+    import time
+    cutoff = time.time() - 86400
+    removed = 0
+    for pattern in ["assets/output/*.mp4", "assets/output/*.jpg", "assets/output/*.png",
+                    "assets/output/*.mp3", "assets/output/*.vo.path"]:
+        for f in glob.glob(pattern):
+            if os.path.getmtime(f) < cutoff:
+                try:
+                    os.unlink(f)
+                    removed += 1
+                except Exception:
+                    pass
+    log.info("[cleanup] removed %d old output files", removed)
 
 BANGKOK = pytz.timezone("Asia/Bangkok")
 
@@ -46,6 +64,10 @@ scheduler.add_job(
 scheduler.add_job(
     lambda: _run_with_log("run_trend_cycle", run_trend_cycle),
     CronTrigger(hour="*/6", minute=0, timezone=BANGKOK),
+)
+scheduler.add_job(
+    lambda: _run_with_log("cleanup_outputs", _cleanup_outputs),
+    CronTrigger(hour=3, minute=0, timezone=BANGKOK),  # 3am Bangkok daily
 )
 
 if __name__ == "__main__":
