@@ -88,6 +88,8 @@ def _reshare_instagram_story(post: dict) -> bool:
 
 
 def _repost_tiktok(post: dict) -> bool:
+    if not config.TIKTOK_ENABLED:
+        return False
     try:
         import json
         from playwright.sync_api import sync_playwright
