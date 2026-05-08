@@ -45,7 +45,7 @@ scheduler.add_job(
 )
 scheduler.add_job(
     lambda: _run_with_log("run_trend_cycle", run_trend_cycle),
-    CronTrigger(hour="*/2", minute=0, timezone=BANGKOK),
+    CronTrigger(hour="*/6", minute=0, timezone=BANGKOK),
 )
 
 if __name__ == "__main__":
