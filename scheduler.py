@@ -5,7 +5,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 import pytz
 
-from main import run_post_cycle, run_video_cycle
+from main import run_post_cycle, run_video_cycle, run_trend_cycle
 
 BANGKOK = pytz.timezone("Asia/Bangkok")
 
@@ -42,6 +42,10 @@ scheduler.add_job(
 scheduler.add_job(
     lambda: _run_with_log("run_video_cycle", run_video_cycle),
     CronTrigger(hour="9,15,20", minute=0, timezone=BANGKOK),
+)
+scheduler.add_job(
+    lambda: _run_with_log("run_trend_cycle", run_trend_cycle),
+    CronTrigger(hour="*/2", minute=0, timezone=BANGKOK),
 )
 
 if __name__ == "__main__":
