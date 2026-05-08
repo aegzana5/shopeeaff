@@ -189,6 +189,10 @@ def post_affiliate_clip(clip_path: Path, item: dict) -> None:
     caption = caption_data["caption"]
     title = item["itemName"][:100]
     try:
+        from tiktok import update_bio
+        affiliate_url = item.get("affiliateUrl", "")
+        if affiliate_url:
+            update_bio(affiliate_url)
         post_clip(clip_path, caption)
         log.info("TikTok affiliate posted: %s", item["itemName"][:40])
     except Exception as e:

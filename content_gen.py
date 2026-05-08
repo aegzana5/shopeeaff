@@ -109,27 +109,27 @@ def generate_video_caption(item: dict, extra_hooks: list = None) -> dict:
             f"- {h}" for h in extra_hooks[:3]
         )
 
-    prompt = f"""You are a viral Thai TikTok fashion creator for @trendyinthai.
+    prompt = f"""You are a viral Thai TikTok fashion creator. Write captions that sound exactly like a real person posting, not a brand or ad.
 
 Product: {item['itemName']}
-Price: {price_display}
+Price: {price_display} บาท
 Rating: {rating} stars
-Formula: {formula_guide}{hooks_section}
+Hook formula: {formula_guide}{hooks_section}
 
-Write a TikTok caption (Thai-primary):
+Caption rules:
+- LINE 1: Hook only. Short, punchy, creates curiosity or shock. Under 40 chars. Use the formula.
+- LINE 2-3: Why this product slaps. Casual, like texting a friend. Max 2 lines.
+- LINE 4: "ลิ้งค์ใน bio นะ 🔗" (always this exact CTA — link is in bio)
+- Hashtags: DO NOT include — added separately
 
-LINE 1 — HOOK (CRITICAL): Must stop the scroll. Under 50 Thai characters. Use the formula above. One emoji.
-LINE 2-3 — BODY: 1-2 lines. Product benefit, why it's worth it. Casual TikTok voice.
-LINE 4 — CTA: "กดลิ้งค์ด้านล่างได้เลย 👇" or "ลิ้งค์ด้านล่าง 🛒"
+Tone: Real Thai gen-z creator. Drop filler words. No corporate speak. No "สินค้าคุณภาพดี".
+Viral examples of LINE 1:
+- "แค่ {price_display} บาท?? ฉันซื้อผิดหรือเปล่า 😭"
+- "POV: เจอชุดนี้ใน Shopee ตอนตีสอง 🌙"
+- "เพื่อนถามว่าซื้อที่ไหน ฉันไม่บอก 🤫"
+- "ราคานี้ดีเกินจริง ฉันว่ามันผิดพลาด"
 
-Rules:
-- Thai only (light English OK as flair, not a full section)
-- Hook line must be standalone — someone reading only line 1 must feel curious or shocked
-- Sound like a real Thai TikTok creator, not an ad
-- NO fake urgency like "เหลือแค่ 3 ชิ้น"
-- Total: 4-5 lines max
-
-Return ONLY the caption text."""
+Return ONLY the caption (4 lines, no hashtags)."""
 
     message = client.messages.create(
         model="claude-sonnet-4-6",
@@ -139,14 +139,13 @@ Return ONLY the caption text."""
     caption_body = message.content[0].text.strip()
 
     hashtags = " ".join(HASHTAGS_TIKTOK)
-    affiliate_url = item.get("affiliateUrl", "")
-    link_line = f"\n{affiliate_url}" if affiliate_url else ""
-    full_caption = f"{caption_body}\n\n{hashtags}{link_line}"
+    full_caption = f"{caption_body}\n\n{hashtags}"
 
     return {
         "caption": full_caption,
         "caption_body": caption_body,
         "hashtags": hashtags,
+        "affiliate_url": item.get("affiliateUrl", ""),
     }
 
 

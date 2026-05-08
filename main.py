@@ -206,8 +206,12 @@ def run_video_cycle():
             caption_data = generate_video_caption(item, extra_hooks=trending_hooks or None)
             caption = caption_data["caption"]
             title = item["itemName"][:100]
+            affiliate_url = caption_data.get("affiliate_url", "")
 
             try:
+                if affiliate_url:
+                    from tiktok import update_bio
+                    update_bio(affiliate_url)
                 post_clip(clip_path, caption)
                 log.info(f"TikTok posted: {item['itemName'][:40]}")
             except Exception as e:

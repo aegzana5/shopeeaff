@@ -106,3 +106,46 @@ def post_clip(video_path: Path, caption: str) -> str:
             if str(e) == "SESSION_EXPIRED":
                 raise RuntimeError("TikTok session expired. Run: python3 setup_tiktok.py") from None
             raise RuntimeError(f"TikTok post failed: {e}") from e
+
+
+def update_bio(link: str) -> bool:
+    """Update TikTok profile bio with affiliate link. Returns True on success."""
+    if not TIKTOK_ENABLED:
+        return False
+    cookies = _load_cookies()
+    with sync_playwright() as p:
+        browser = p.webkit.launch(headless=True)
+        ctx = browser.new_context(viewport={"width": 1280, "height": 900})
+        ctx.add_cookies(cookies)
+        page = ctx.new_page()
+        try:
+            page.goto("https://www.tiktok.com/setting", wait_until="networkidle", timeout=30000)
+            if "login" in page.url:
+                browser.close()
+                return False
+            # Navigate to profile edit
+            page.goto("https://www.tiktok.com/@me/edit", wait_until="networkidle", timeout=30000)
+            time.sleep(2)
+            # Find bio textarea
+            bio_field = page.locator('textarea[name="bio"], textarea[placeholder*="bio" i], div[data-e2e="bio-input"]').first
+            if bio_field.count() == 0:
+                # Try generic textarea
+                bio_field = page.locator("textarea").first
+            if bio_field.count() == 0:
+                browser.close()
+                return False
+            bio_field.triple_click()
+            bio_field.fill(link)
+            time.sleep(1)
+            # Save
+            for save_txt in ["Save", "บันทึก", "保存"]:
+                btn = page.locator(f'button:has-text("{save_txt}")')
+                if btn.count() > 0:
+                    btn.first.click()
+                    break
+            time.sleep(2)
+            browser.close()
+            return True
+        except Exception as e:
+            browser.close()
+            return False
