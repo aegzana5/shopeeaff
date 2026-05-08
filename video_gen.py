@@ -353,6 +353,8 @@ def create_price_reveal_clip(
             bg_cap.release()
         cmd = _build_ffmpeg_cmd(ffmpeg, tmp_path, out_path, music, voiceover_path)
         subprocess.run(cmd, check=True, capture_output=True)
+        if voiceover_path:
+            out_path.with_suffix(".vo.path").write_text(str(voiceover_path))
 
     return out_path
 
@@ -452,6 +454,8 @@ def create_countdown_clip(
             bg_cap.release()
         cmd = _build_ffmpeg_cmd(ffmpeg, tmp_path, out_path, music, voiceover_path)
         subprocess.run(cmd, check=True, capture_output=True)
+        if voiceover_path:
+            out_path.with_suffix(".vo.path").write_text(str(voiceover_path))
 
     return out_path
 
@@ -504,5 +508,7 @@ def create_clip(
             bg_cap.release()
         cmd = _build_ffmpeg_cmd(ffmpeg, tmp_path, out_path, music, voiceover_path)
         subprocess.run(cmd, check=True, capture_output=True)
+        if voiceover_path:
+            out_path.with_suffix(".vo.path").write_text(str(voiceover_path))
 
     return out_path

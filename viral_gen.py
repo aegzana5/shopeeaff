@@ -100,6 +100,8 @@ def create_pov_meme_clip(item: dict, output_name: str) -> Path:
 
         cmd = _build_ffmpeg_cmd(ffmpeg, tmp_path, out_path, music, vo_path)
         subprocess.run(cmd, check=True, capture_output=True)
+        if vo_path:
+            out_path.with_suffix(".vo.path").write_text(str(vo_path))
 
     return out_path
 
@@ -188,6 +190,8 @@ def create_before_after_clip(item: dict, output_name: str) -> Path:
 
         cmd = _build_ffmpeg_cmd(ffmpeg, tmp_path, out_path, music, vo_path)
         subprocess.run(cmd, check=True, capture_output=True)
+        if vo_path:
+            out_path.with_suffix(".vo.path").write_text(str(vo_path))
 
     return out_path
 
@@ -274,6 +278,8 @@ def create_price_shock_clip(item: dict, output_name: str) -> Path:
 
         cmd = _build_ffmpeg_cmd(ffmpeg, tmp_path, out_path, music, vo_path)
         subprocess.run(cmd, check=True, capture_output=True)
+        if vo_path:
+            out_path.with_suffix(".vo.path").write_text(str(vo_path))
 
     return out_path
 
@@ -357,6 +363,8 @@ def create_beat_hook_clip(item: dict, output_name: str) -> Path:
 
         cmd = _build_ffmpeg_cmd(ffmpeg, tmp_path, out_path, music, vo_path)
         subprocess.run(cmd, check=True, capture_output=True)
+        if vo_path:
+            out_path.with_suffix(".vo.path").write_text(str(vo_path))
 
     return out_path
 

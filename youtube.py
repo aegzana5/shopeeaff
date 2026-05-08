@@ -45,12 +45,42 @@ def _get_service():
     return build("youtube", "v3", credentials=creds)
 
 
+def _prepare_yt_video(video_path: Path) -> Path:
+    """Return path to a version of the clip with only TTS audio (no background music)."""
+    import subprocess, tempfile
+    vo_meta = video_path.with_suffix(".vo.path")
+    if vo_meta.exists():
+        vo_path = vo_meta.read_text().strip()
+        tmp = Path(tempfile.mktemp(suffix=".mp4"))
+        subprocess.run(
+            [
+                "ffmpeg", "-y",
+                "-i", str(video_path),
+                "-i", vo_path,
+                "-map", "0:v",
+                "-map", "1:a",
+                "-c:v", "copy", "-c:a", "aac", "-shortest",
+                str(tmp),
+            ],
+            check=True, capture_output=True,
+        )
+        return tmp
+    # No voiceover — strip all audio to avoid Content ID claims
+    tmp = Path(tempfile.mktemp(suffix=".mp4"))
+    subprocess.run(
+        ["ffmpeg", "-y", "-i", str(video_path), "-an", "-c:v", "copy", str(tmp)],
+        check=True, capture_output=True,
+    )
+    return tmp
+
+
 def post_short(video_path: Path, title: str, description: str) -> str:
     """Upload video as YouTube Short. Returns video ID."""
     from googleapiclient.http import MediaFileUpload
 
     youtube = _get_service()
     video_path = Path(video_path).absolute()
+    yt_path = _prepare_yt_video(video_path)
 
     suffix = f" {SHORTS_HASHTAG}"  # " #Shorts" = 8 chars
     max_title_len = 100 - len(suffix)  # 92
@@ -70,7 +100,7 @@ def post_short(video_path: Path, title: str, description: str) -> str:
     }
 
     media = MediaFileUpload(
-        str(video_path),
+        str(yt_path),
         mimetype="video/mp4",
         resumable=True,
         chunksize=1024 * 1024,
@@ -85,6 +115,12 @@ def post_short(video_path: Path, title: str, description: str) -> str:
     response = None
     while response is None:
         _, response = request.next_chunk()
+
+    if yt_path != video_path:
+        try:
+            yt_path.unlink()
+        except Exception:
+            pass
 
     video_id = response["id"]
     log.info("YouTube Short uploaded: https://youtube.com/shorts/%s", video_id)
