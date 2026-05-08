@@ -119,7 +119,7 @@ Hook formula: {formula_guide}{hooks_section}
 Caption rules:
 - LINE 1: Hook only. Short, punchy, creates curiosity or shock. Under 40 chars. Use the formula.
 - LINE 2-3: Why this product slaps. Casual, like texting a friend. Max 2 lines.
-- LINE 4: "ลิ้งค์ใน bio นะ 🔗" (always this exact CTA — link is in bio)
+- LINE 4: "🛒 ลิ้งค์ด้านล่าง" (CTA pointing to link in description)
 - Hashtags: DO NOT include — added separately
 
 Tone: Real Thai gen-z creator. Drop filler words. No corporate speak. No "สินค้าคุณภาพดี".
@@ -128,6 +128,7 @@ Viral examples of LINE 1:
 - "POV: เจอชุดนี้ใน Shopee ตอนตีสอง 🌙"
 - "เพื่อนถามว่าซื้อที่ไหน ฉันไม่บอก 🤫"
 - "ราคานี้ดีเกินจริง ฉันว่ามันผิดพลาด"
+- "ลิ้งค์ด้านล่างได้เลย 🛒"
 
 Return ONLY the caption (4 lines, no hashtags)."""
 

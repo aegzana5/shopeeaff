@@ -163,9 +163,9 @@ def _do_post(page, image_path: Path, caption: str):
     for sel in ['[aria-label="Write a caption..."]', 'div[contenteditable="true"]']:
         lc = page.locator(sel)
         if lc.count() > 0:
-            lc.first.dispatch_event("click")
+            lc.first.click()
             time.sleep(0.3)
-            page.evaluate(f'document.execCommand("insertText", false, {json.dumps(caption)})')
+            lc.first.type(caption, delay=30)
             time.sleep(1)
             break
 
@@ -236,9 +236,9 @@ def post_reel_clip(video_path: Path, caption: str) -> str:
             for sel in ['[aria-label="Write a caption..."]', 'div[contenteditable="true"]']:
                 lc = page.locator(sel)
                 if lc.count() > 0:
-                    lc.first.dispatch_event("click")
+                    lc.first.click()
                     time.sleep(0.3)
-                    page.evaluate(f'document.execCommand("insertText", false, {json.dumps(caption)})')
+                    lc.first.type(caption, delay=30)
                     time.sleep(1)
                     break
 

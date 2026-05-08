@@ -18,7 +18,6 @@ from viral_gen import (
 )
 import tts
 import stock_media
-from tiktok import post_clip
 from youtube import post_short
 from config import POSTS_PER_DAY, REELS_PER_DAY, IMAGE_POSTS_PER_DAY, CLIPS_PER_DAY, TREND_RESHARE_ENABLED, OUTFIT_MATCHES
 from trend_discovery import discover_all
@@ -37,13 +36,9 @@ log = logging.getLogger(__name__)
 
 
 def _inject_link(caption: str, url: str) -> str:
-    """Replace TikTok bio CTA with direct URL for YouTube/Instagram."""
     if not url:
         return caption
-    replaced = caption.replace("ลิ้งค์ใน bio นะ 🔗", f"🛒 {url}")
-    if replaced == caption:
-        replaced = f"{caption}\n🛒 {url}"
-    return replaced
+    return f"{caption}\n🛒 {url}"
 
 
 def run_post_cycle():
@@ -226,15 +221,6 @@ def run_video_cycle():
                     clip_path = create_price_reveal_clip(
                         item, clip_name, voiceover_path=vo_path, bg_video_path=bg_path
                     )
-
-            try:
-                if affiliate_url:
-                    from tiktok import update_bio
-                    update_bio(affiliate_url)
-                post_clip(clip_path, caption)
-                log.info(f"TikTok posted: {item['itemName'][:40]}")
-            except Exception as e:
-                log.error(f"TikTok post {i} failed: {e}")
 
             try:
                 video_id = post_short(clip_path, title, caption_with_link)

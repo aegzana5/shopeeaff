@@ -55,8 +55,6 @@ _CLIP_FORMAT_MAP = [
 def reshare_story(post: dict) -> bool:
     if post["platform"] == "instagram":
         return _reshare_instagram_story(post)
-    elif post["platform"] == "tiktok":
-        return _repost_tiktok(post)
     return False
 
 
@@ -86,50 +84,6 @@ def _reshare_instagram_story(post: dict) -> bool:
         log.warning("Instagram story reshare failed: %s", e)
         return False
 
-
-def _repost_tiktok(post: dict) -> bool:
-    if not config.TIKTOK_ENABLED:
-        return False
-    try:
-        import json
-        from playwright.sync_api import sync_playwright
-        session_file = Path(config.TIKTOK_SESSION_FILE)
-        if not session_file.exists():
-            log.warning("No TikTok session, skipping repost")
-            return False
-        data = json.loads(session_file.read_text())
-        cookies = data.get("cookies", [])
-        with sync_playwright() as p:
-            browser = p.webkit.launch(headless=True)
-            ctx = browser.new_context(
-                viewport={"width": 1280, "height": 900},
-            )
-            ctx.add_cookies(cookies)
-            page = ctx.new_page()
-            page.goto(post["url"], wait_until="domcontentloaded", timeout=30000)
-            time.sleep(3)
-            share_btn = page.locator('[data-e2e="share-icon"]').first
-            if share_btn.count() == 0:
-                log.warning("TikTok share button not found for %s", post["post_id"])
-                browser.close()
-                return False
-            share_btn.click()
-            time.sleep(1)
-            repost_btn = page.get_by_text("Repost", exact=False).first
-            if repost_btn.count() == 0:
-                repost_btn = page.get_by_text("รีโพสต์", exact=False).first
-            if repost_btn.count() == 0:
-                log.warning("TikTok repost button not found for %s", post["post_id"])
-                browser.close()
-                return False
-            repost_btn.click()
-            time.sleep(2)
-            browser.close()
-        log.info("TikTok repost: %s", post["post_id"])
-        return True
-    except Exception as e:
-        log.warning("TikTok repost failed: %s", e)
-        return False
 
 
 def find_shopee_match(post: dict) -> dict | None:
@@ -186,32 +140,14 @@ def generate_affiliate_clip(item: dict, post: dict) -> Path:
         return create_beat_hook_clip(item, output_name, voiceover_path=vo_path)
 
 
-def _inject_link(caption: str, url: str) -> str:
-    if not url:
-        return caption
-    replaced = caption.replace("ลิ้งค์ใน bio นะ 🔗", f"🛒 {url}")
-    if replaced == caption:
-        replaced = f"{caption}\n🛒 {url}"
-    return replaced
-
-
 def post_affiliate_clip(clip_path: Path, item: dict) -> None:
     from content_gen import generate_video_caption
-    from tiktok import post_clip
     from youtube import post_short
     caption_data = generate_video_caption(item)
     caption = caption_data["caption"]
     title = item["itemName"][:100]
     affiliate_url = item.get("affiliateUrl", "")
-    caption_with_link = _inject_link(caption, affiliate_url)
-    try:
-        from tiktok import update_bio
-        if affiliate_url:
-            update_bio(affiliate_url)
-        post_clip(clip_path, caption)
-        log.info("TikTok affiliate posted: %s", item["itemName"][:40])
-    except Exception as e:
-        log.error("TikTok affiliate post failed: %s", e)
+    caption_with_link = f"{caption}\n🛒 {affiliate_url}" if affiliate_url else caption
     try:
         post_short(clip_path, title, caption_with_link)
         log.info("YouTube affiliate posted: %s", item["itemName"][:40])
