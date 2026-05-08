@@ -22,6 +22,24 @@ try:
 except ImportError:
     Client = None
 
+_ig_client: "Client | None" = None
+
+
+def _get_ig_client() -> "Client | None":
+    global _ig_client
+    if _ig_client is not None:
+        return _ig_client
+    if Client is None:
+        return None
+    try:
+        cl = Client()
+        cl.login(config.IG_USERNAME, config.IG_PASSWORD)
+        _ig_client = cl
+        return _ig_client
+    except Exception as e:
+        log.warning("Instagram login failed: %s", e)
+        return None
+
 _CLIP_FORMAT_MAP = [
     (["ก่อน", "หลัง", "before", "after"], "before_after"),
     (["pov", "POV"], "pov_meme"),
@@ -42,10 +60,14 @@ def _reshare_instagram_story(post: dict) -> bool:
         if Client is None:
             log.warning("instagrapi not installed, skipping Instagram story reshare")
             return False
-        cl = Client()
-        cl.login(config.IG_USERNAME, config.IG_PASSWORD)
+        cl = _get_ig_client()
+        if cl is None:
+            return False
         media_info = cl.media_info(int(post["post_id"]))
-        thumb_url = str(media_info.thumbnail_url)
+        thumb_url = str(media_info.thumbnail_url) if media_info.thumbnail_url else None
+        if not thumb_url:
+            log.warning("thumbnail_url is None for post %s, skipping reshare", post["post_id"])
+            return False
         resp = requests.get(thumb_url, timeout=30)
         resp.raise_for_status()
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
@@ -95,6 +117,8 @@ def _repost_tiktok(post: dict) -> bool:
             time.sleep(1)
             repost_btn = page.get_by_text("Repost", exact=False).first
             if repost_btn.count() == 0:
+                repost_btn = page.get_by_text("รีโพสต์", exact=False).first
+            if repost_btn.count() == 0:
                 log.warning("TikTok repost button not found for %s", post["post_id"])
                 browser.close()
                 return False
@@ -126,6 +150,9 @@ def find_shopee_match(post: dict) -> dict | None:
                 ),
             }],
         )
+        if not msg.content or not hasattr(msg.content[0], "text"):
+            log.warning("Claude returned empty or non-text content for caption: %s", caption[:80])
+            return None
         query = msg.content[0].text.strip()
     except Exception as e:
         log.warning("Claude keyword extraction failed: %s", e)

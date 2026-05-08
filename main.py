@@ -80,6 +80,22 @@ def run_post_cycle():
 _VIDEO_HISTORY = Path("assets/video_history.json")
 _VIDEO_HISTORY_MAX = 90  # keep last 90 posted item IDs
 
+_TREND_HISTORY = Path("assets/trend_history.json")
+_TREND_HISTORY_MAX = 500
+
+
+def _load_trend_history() -> set:
+    if _TREND_HISTORY.exists():
+        return set(json.loads(_TREND_HISTORY.read_text()))
+    return set()
+
+
+def _save_trend_history(history: set) -> None:
+    items_list = list(history)[-_TREND_HISTORY_MAX:]
+    tmp = _TREND_HISTORY.with_suffix(".tmp")
+    tmp.write_text(json.dumps(items_list))
+    tmp.rename(_TREND_HISTORY)
+
 
 def _load_video_history() -> set:
     if _VIDEO_HISTORY.exists():
@@ -201,7 +217,12 @@ def run_trend_cycle():
         log.info("No viral posts found, skipping trend cycle")
         return
 
-    for post in posts:
+    trend_history = _load_trend_history()
+    fresh_posts = [p for p in posts if p.get("post_id") not in trend_history]
+    log.info("Trend posts: %d total, %d fresh (skipping %d seen)", len(posts), len(fresh_posts), len(posts) - len(fresh_posts))
+
+    processed_ids = set()
+    for post in fresh_posts:
         try:
             if TREND_RESHARE_ENABLED:
                 reshare_story(post)
@@ -209,12 +230,16 @@ def run_trend_cycle():
             if item:
                 clip = generate_affiliate_clip(item, post)
                 post_affiliate_clip(clip, item)
+            processed_ids.add(post["post_id"])
         except Exception as e:
             log.error("Trend post %s failed: %s", post.get("post_id", "unknown"), e)
 
+    trend_history.update(processed_ids)
+    _save_trend_history(trend_history)
+
     signals = extract_signals(posts)
     save_signals(signals)
-    log.info("Trend cycle done: %d posts processed", len(posts))
+    log.info("Trend cycle done: %d posts processed", len(fresh_posts))
 
 
 def _parse_script(raw: str) -> dict:

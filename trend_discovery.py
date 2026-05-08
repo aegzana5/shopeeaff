@@ -15,6 +15,7 @@ def _filter_posts(posts: list[dict]) -> list[dict]:
         p for p in posts
         if p["views"] >= config.TREND_MIN_VIEWS or p["likes"] >= config.TREND_MIN_LIKES
     ]
+    qualifying.sort(key=lambda p: p.get("views", 0), reverse=True)
     return qualifying[: config.TREND_TOP_N]
 
 
