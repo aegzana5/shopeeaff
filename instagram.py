@@ -206,65 +206,57 @@ def post_reel_clip(video_path: Path, caption: str) -> str:
             )
 
         try:
-            if "instagram.com" not in page.url:
-                page.goto("https://www.instagram.com/", wait_until="domcontentloaded", timeout=30000)
-                time.sleep(2)
+            page.goto("https://www.instagram.com/", wait_until="domcontentloaded", timeout=30000)
+            time.sleep(3)
 
-            # Click "New post" button
-            for sel in [
-                '[aria-label="New post"]',
-                'svg[aria-label="New post"]',
-                '[data-testid="new-post-button"]',
-            ]:
-                if page.locator(sel).count() > 0:
-                    page.locator(sel).first.click()
+            # Open create dialog → click "New post" then "Post" from dropdown
+            page.locator('[aria-label="New post"]').first.click()
+            time.sleep(2)
+            page.get_by_text("Post", exact=True).first.click()
+            time.sleep(3)
+
+            # Find file input — may appear in page or iframe
+            file_input = None
+            for attempt in range(10):
+                for frame in [page] + list(page.frames):
+                    fi = frame.locator('input[type="file"]')
+                    if fi.count() > 0:
+                        file_input = fi.first
+                        break
+                if file_input:
                     break
-            else:
-                page.click('a[href="/create/style/"]', timeout=5000)
-            time.sleep(1)
+                time.sleep(1)
+            if file_input is None:
+                raise RuntimeError("Instagram: no file input found after dialog open")
+            file_input.set_input_files(str(video_path))
+            time.sleep(8)
 
-            # Click "Reel" option
-            for sel in ['text="Reel"', '[aria-label="Reel"]']:
+            # Click through Next steps (crop / trim / caption)
+            for _ in range(3):
+                for txt in ["Next", "ถัดไป", "下一步"]:
+                    lc = page.get_by_role("button", name=txt)
+                    if lc.count() > 0:
+                        lc.last.dispatch_event("click")
+                        time.sleep(2)
+                        break
+
+            # Fill caption
+            for sel in ['[aria-label="Write a caption..."]', 'div[contenteditable="true"]']:
                 lc = page.locator(sel)
                 if lc.count() > 0:
-                    lc.first.click()
+                    lc.first.dispatch_event("click")
+                    time.sleep(0.3)
+                    page.evaluate(f'document.execCommand("insertText", false, {json.dumps(caption)})')
                     time.sleep(1)
                     break
 
-            # Upload video via file chooser
-            with page.expect_file_chooser(timeout=15000) as fc_info:
-                for sel in ['text="Select from computer"', 'text="Select From Computer"', '[type="file"]']:
-                    lc = page.locator(sel)
-                    if lc.count() > 0:
-                        lc.first.click()
-                        break
-            fc_info.value.set_files(str(video_path))
-            time.sleep(8)
-
-            # Click Next (may appear multiple times)
-            page.locator('text="Next"').last.click()
-            time.sleep(2)
-
-            next_lc = page.locator('text="Next"')
-            if next_lc.count() > 0:
-                next_lc.last.click()
-                time.sleep(2)
-
-            # Fill caption
-            for sel in [
-                '[aria-label="Write a caption..."]',
-                'div[contenteditable="true"]',
-            ]:
-                lc = page.locator(sel)
-                if lc.count() > 0:
-                    lc.first.click()
-                    lc.first.fill(caption)
-                    break
-            time.sleep(1)
-
             # Share
-            page.locator('text="Share"').last.click()
-            time.sleep(10)
+            for txt in ["Share", "โพสต์", "发布"]:
+                lc = page.get_by_role("button", name=txt)
+                if lc.count() > 0:
+                    lc.last.dispatch_event("click")
+                    break
+            time.sleep(12)
 
             ctx.storage_state(path=str(STATE_FILE))
             browser.close()
