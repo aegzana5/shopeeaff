@@ -129,60 +129,52 @@ def _do_post(page, image_path: Path, caption: str):
         page.goto("https://www.instagram.com/", wait_until="domcontentloaded", timeout=30000)
         time.sleep(2)
 
-    for sel in [
-        '[aria-label="New post"]',
-        'svg[aria-label="New post"]',
-        '[data-testid="new-post-button"]',
-    ]:
-        if page.locator(sel).count() > 0:
-            page.locator(sel).first.click()
-            break
-    else:
-        page.click('a[href="/create/style/"]', timeout=5000)
-    time.sleep(1)
+    # Open create dropdown → click Post
+    page.locator('[aria-label="New post"]').first.click()
+    time.sleep(2)
+    page.get_by_text("Post", exact=True).first.click()
+    time.sleep(3)
 
-    for txt in ["Post", "post"]:
-        lc = page.locator(f'text="{txt}"')
+    # Inject file directly — search page and all frames
+    file_input = None
+    for attempt in range(10):
+        for frame in [page] + list(page.frames):
+            fi = frame.locator('input[type="file"]')
+            if fi.count() > 0:
+                file_input = fi.first
+                break
+        if file_input:
+            break
+        time.sleep(1)
+    if file_input is None:
+        raise RuntimeError("Instagram: no file input found")
+    file_input.set_input_files(str(image_path))
+    time.sleep(3)
+
+    # Next (crop) → Next (filter) → caption
+    for _ in range(2):
+        for txt in ["Next", "ถัดไป"]:
+            lc = page.get_by_role("button", name=txt)
+            if lc.count() > 0:
+                lc.last.dispatch_event("click")
+                time.sleep(2)
+                break
+
+    for sel in ['[aria-label="Write a caption..."]', 'div[contenteditable="true"]']:
+        lc = page.locator(sel)
         if lc.count() > 0:
-            lc.first.click()
+            lc.first.dispatch_event("click")
+            time.sleep(0.3)
+            page.evaluate(f'document.execCommand("insertText", false, {json.dumps(caption)})')
             time.sleep(1)
             break
 
-    with page.expect_file_chooser(timeout=10000) as fc_info:
-        for sel in [
-            'text="Select from computer"',
-            'text="Select From Computer"',
-            '[type="file"]',
-        ]:
-            lc = page.locator(sel)
-            if lc.count() > 0:
-                lc.first.click()
-                break
-    fc_info.value.set_files(str(image_path))
-    time.sleep(3)
-
-    page.locator('text="Next"').last.click()
-    time.sleep(2)
-
-    next_lc = page.locator('text="Next"')
-    if next_lc.count() > 0:
-        next_lc.last.click()
-        time.sleep(2)
-
-    for sel in [
-        '[aria-label="Write a caption..."]',
-        'textarea[placeholder*="caption"]',
-        'div[contenteditable="true"]',
-    ]:
-        lc = page.locator(sel)
+    for txt in ["Share", "โพสต์"]:
+        lc = page.get_by_role("button", name=txt)
         if lc.count() > 0:
-            lc.first.click()
-            lc.first.fill(caption)
+            lc.last.dispatch_event("click")
             break
-    time.sleep(1)
-
-    page.locator('text="Share"').last.click()
-    time.sleep(8)
+    time.sleep(10)
 
 
 def post_reel(video_path: Path, caption: str) -> str:
