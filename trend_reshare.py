@@ -164,6 +164,8 @@ def find_shopee_match(post: dict) -> dict | None:
 
 
 def generate_affiliate_clip(item: dict, post: dict) -> Path:
+    from content_gen import generate_video_caption
+    import tts as tts_mod
     caption_lower = post.get("caption", "").lower()
     clip_type = "beat_hook"
     for keywords, ctype in _CLIP_FORMAT_MAP:
@@ -171,14 +173,17 @@ def generate_affiliate_clip(item: dict, post: dict) -> Path:
             clip_type = ctype
             break
     output_name = f"trend_{post['post_id'][:20]}"
+    caption_data = generate_video_caption(item)
+    caption_body = caption_data.get("caption_body", "")
+    vo_path = tts_mod.generate_voiceover_from_text(caption_body, output_name) if caption_body else None
     if clip_type == "before_after":
-        return create_before_after_clip(item, output_name)
+        return create_before_after_clip(item, output_name, voiceover_path=vo_path)
     elif clip_type == "pov_meme":
-        return create_pov_meme_clip(item, output_name)
+        return create_pov_meme_clip(item, output_name, voiceover_path=vo_path)
     elif clip_type == "price_shock":
-        return create_price_shock_clip(item, output_name)
+        return create_price_shock_clip(item, output_name, voiceover_path=vo_path)
     else:
-        return create_beat_hook_clip(item, output_name)
+        return create_beat_hook_clip(item, output_name, voiceover_path=vo_path)
 
 
 def _inject_link(caption: str, url: str) -> str:

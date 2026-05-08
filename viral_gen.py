@@ -40,7 +40,7 @@ def _render_viral_frames(
         img.save(frames_dir / f"frame{i:04d}.jpg", "JPEG", quality=90)
 
 
-def create_pov_meme_clip(item: dict, output_name: str) -> Path:
+def create_pov_meme_clip(item: dict, output_name: str, voiceover_path: "Path | None" = None) -> Path:
     """POV text + lifestyle B-roll + price CTA."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     ffmpeg = _ffmpeg_bin()
@@ -48,7 +48,7 @@ def create_pov_meme_clip(item: dict, output_name: str) -> Path:
 
     keywords = stock_media._extract_keywords(item["itemName"])
     bg_path = stock_media.fetch_bg_video(keywords, output_name)
-    vo_path = tts.generate_voiceover(item, output_name)
+    vo_path = voiceover_path or tts.generate_voiceover(item, output_name)
 
     try:
         product_img = _download_image(item["imageUrl"])
@@ -106,7 +106,7 @@ def create_pov_meme_clip(item: dict, output_name: str) -> Path:
     return out_path
 
 
-def create_before_after_clip(item: dict, output_name: str) -> Path:
+def create_before_after_clip(item: dict, output_name: str, voiceover_path: "Path | None" = None) -> Path:
     """Segment 1: plain B-roll + 'ก่อนเจอ Shopee'. Segment 2: product + price reveal."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     ffmpeg = _ffmpeg_bin()
@@ -114,7 +114,7 @@ def create_before_after_clip(item: dict, output_name: str) -> Path:
 
     keywords = stock_media._extract_keywords(item["itemName"])
     bg_path = stock_media.fetch_bg_video(keywords, output_name)
-    vo_path = tts.generate_voiceover(item, output_name)
+    vo_path = voiceover_path or tts.generate_voiceover(item, output_name)
 
     try:
         product_img = _download_image(item["imageUrl"])
@@ -196,7 +196,7 @@ def create_before_after_clip(item: dict, output_name: str) -> Path:
     return out_path
 
 
-def create_price_shock_clip(item: dict, output_name: str) -> Path:
+def create_price_shock_clip(item: dict, output_name: str, voiceover_path: "Path | None" = None) -> Path:
     """Segment 1: 'ราคาปกติ vs Shopee' tease. Segment 2: product + Shopee price reveal."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     ffmpeg = _ffmpeg_bin()
@@ -204,7 +204,7 @@ def create_price_shock_clip(item: dict, output_name: str) -> Path:
 
     keywords = stock_media._extract_keywords(item["itemName"])
     bg_path = stock_media.fetch_bg_video(keywords, output_name)
-    vo_path = tts.generate_voiceover(item, output_name)
+    vo_path = voiceover_path or tts.generate_voiceover(item, output_name)
 
     try:
         product_img = _download_image(item["imageUrl"])
@@ -284,7 +284,7 @@ def create_price_shock_clip(item: dict, output_name: str) -> Path:
     return out_path
 
 
-def create_beat_hook_clip(item: dict, output_name: str) -> Path:
+def create_beat_hook_clip(item: dict, output_name: str, voiceover_path: "Path | None" = None) -> Path:
     """Product frames cut on beat markers (default 120 BPM = 15 frames/beat)."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     ffmpeg = _ffmpeg_bin()
@@ -295,7 +295,7 @@ def create_beat_hook_clip(item: dict, output_name: str) -> Path:
 
     keywords = stock_media._extract_keywords(item["itemName"])
     bg_path = stock_media.fetch_bg_video(keywords, output_name)
-    vo_path = tts.generate_voiceover(item, output_name)
+    vo_path = voiceover_path or tts.generate_voiceover(item, output_name)
 
     try:
         product_img = _download_image(item["imageUrl"])

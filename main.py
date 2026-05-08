@@ -163,61 +163,52 @@ def run_video_cycle():
     all_items = pick_top_items(items, n=min(len(items), 200))
     fresh = [it for it in all_items if str(it.get("itemId", "")) not in history]
 
-    if len(fresh) < CLIPS_PER_DAY * 3:
+    if len(fresh) < CLIPS_PER_DAY:
         log.warning("Video history nearly exhausted, resetting")
         history = set()
         fresh = all_items
 
-    # Batch into groups of 3 items per clip
-    clip_batches = [fresh[i:i + 3] for i in range(0, CLIPS_PER_DAY * 3, 3)][:CLIPS_PER_DAY]
+    # 1 item per clip
+    clip_items = fresh[:CLIPS_PER_DAY]
 
     CLIP_TYPES = [
-        "multi", "price_reveal", "countdown",
-        "before_after", "pov_meme", "price_shock", "beat_hook",
+        "price_reveal", "before_after", "pov_meme", "price_shock", "beat_hook",
     ]
     CLIP_TYPES = CLIP_TYPES + signals.get("top_clip_types", [])
 
     posted = 0
-    for i, batch in enumerate(clip_batches):
+    for i, item in enumerate(clip_items):
         try:
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             clip_type = random.choice(CLIP_TYPES)
             clip_name = f"clip_{ts}_{i}"
-            item = batch[0]
 
-            if clip_type == "before_after":
-                clip_path = create_before_after_clip(item, clip_name)
-            elif clip_type == "pov_meme":
-                clip_path = create_pov_meme_clip(item, clip_name)
-            elif clip_type == "price_shock":
-                clip_path = create_price_shock_clip(item, clip_name)
-            elif clip_type == "beat_hook":
-                clip_path = create_beat_hook_clip(item, clip_name)
-            else:
-                keywords = stock_media._extract_keywords(item["itemName"])
-                vo_path = tts.generate_voiceover(item, clip_name)
-                bg_path = stock_media.fetch_bg_video(keywords, clip_name)
-                if clip_type == "price_reveal":
-                    clip_path = create_price_reveal_clip(
-                        item, clip_name, voiceover_path=vo_path, bg_video_path=bg_path
-                    )
-                elif clip_type == "countdown":
-                    five_items = fresh[i * 3: i * 3 + 5]
-                    if len(five_items) < 5:
-                        five_items = (five_items * 5)[:5]
-                    clip_path = create_countdown_clip(
-                        five_items, clip_name, voiceover_path=vo_path, bg_video_path=bg_path
-                    )
-                else:
-                    clip_path = create_clip(
-                        batch, clip_name, voiceover_path=vo_path, bg_video_path=bg_path
-                    )
-
+            # Generate caption first so TTS can read it
             caption_data = generate_video_caption(item, extra_hooks=trending_hooks or None)
             caption = caption_data["caption"]
+            caption_body = caption_data.get("caption_body", caption)
             title = item["itemName"][:100]
             affiliate_url = caption_data.get("affiliate_url", "")
             caption_with_link = _inject_link(caption, affiliate_url)
+
+            # TTS reads the actual caption (Thai gen-z hook + body)
+            vo_path = tts.generate_voiceover_from_text(caption_body, clip_name)
+
+            keywords = stock_media._extract_keywords(item["itemName"])
+            bg_path = stock_media.fetch_bg_video(keywords, clip_name)
+
+            if clip_type == "before_after":
+                clip_path = create_before_after_clip(item, clip_name, voiceover_path=vo_path)
+            elif clip_type == "pov_meme":
+                clip_path = create_pov_meme_clip(item, clip_name, voiceover_path=vo_path)
+            elif clip_type == "price_shock":
+                clip_path = create_price_shock_clip(item, clip_name, voiceover_path=vo_path)
+            elif clip_type == "beat_hook":
+                clip_path = create_beat_hook_clip(item, clip_name, voiceover_path=vo_path)
+            else:
+                clip_path = create_price_reveal_clip(
+                    item, clip_name, voiceover_path=vo_path, bg_video_path=bg_path
+                )
 
             try:
                 if affiliate_url:
@@ -241,9 +232,7 @@ def run_video_cycle():
             except Exception as e:
                 log.error(f"Instagram Reel post {i} failed: {e}")
 
-            # Mark all batch items as seen
-            for it in batch:
-                history.add(str(it.get("itemId", "")))
+            history.add(str(item.get("itemId", "")))
             posted += 1
         except Exception as e:
             log.error(f"Video clip {i} failed: {e}")
