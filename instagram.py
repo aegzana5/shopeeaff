@@ -177,8 +177,9 @@ def _do_post(page, image_path: Path, caption: str):
         if lc.count() > 0:
             lc.first.click()
             time.sleep(0.5)
-            lc.first.fill("")
-            lc.first.type(caption, delay=20)
+            page.keyboard.press("Control+a")
+            page.keyboard.press("Delete")
+            page.keyboard.type(caption, delay=20)
             time.sleep(1)
             break
 
@@ -263,8 +264,9 @@ def post_reel_clip(video_path: Path, caption: str) -> str:
                 if lc.count() > 0:
                     lc.first.click()
                     time.sleep(0.5)
-                    lc.first.fill("")
-                    lc.first.type(caption, delay=20)
+                    page.keyboard.press("Control+a")
+                    page.keyboard.press("Delete")
+                    page.keyboard.type(caption, delay=20)
                     time.sleep(1)
                     break
 
