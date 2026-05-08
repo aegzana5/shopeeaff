@@ -25,8 +25,16 @@ def discover_instagram(accounts: list[str], hashtags: list[str]) -> list[dict]:
         return []
 
     cl = Client()
+    session_file = config.IG_SESSION_FILE
     try:
-        cl.login(config.IG_USERNAME, config.IG_PASSWORD)
+        from pathlib import Path as _Path
+        if _Path(session_file).exists():
+            cl.load_settings(session_file)
+            cl.login(config.IG_USERNAME, config.IG_PASSWORD)
+        else:
+            cl.login(config.IG_USERNAME, config.IG_PASSWORD)
+            _Path(session_file).parent.mkdir(parents=True, exist_ok=True)
+            cl.dump_settings(session_file)
     except Exception as e:
         log.warning("Instagram login failed: %s", e)
         return []
@@ -86,7 +94,7 @@ def discover_tiktok(accounts: list[str], hashtags: list[str]) -> list[dict]:
         results = []
         try:
             async with TikTokApi() as api:
-                await api.create_sessions(num_sessions=1, sleep_after=3)
+                await api.create_sessions(num_sessions=1, sleep_after=3, browser="webkit")
                 for username in accounts:
                     try:
                         async for video in api.user(username=username).videos(count=20):

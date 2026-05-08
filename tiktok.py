@@ -33,52 +33,56 @@ def post_clip(video_path: Path, caption: str) -> str:
     cookies = _load_cookies()
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=True,
-            args=["--disable-blink-features=AutomationControlled", "--no-sandbox"],
-        )
+        browser = p.webkit.launch(headless=True)
         ctx = browser.new_context(
             viewport={"width": 1280, "height": 900},
-            user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/124.0.0.0 Safari/537.36"
-            ),
         )
         ctx.add_cookies(cookies)
         page = ctx.new_page()
 
         try:
-            page.goto("https://www.tiktok.com/upload", wait_until="domcontentloaded", timeout=30000)
+            page.goto("https://www.tiktok.com/upload", wait_until="networkidle", timeout=45000)
             time.sleep(5)
 
             if "login" in page.url:
                 raise RuntimeError("SESSION_EXPIRED")
 
-            # Upload file — direct input[type="file"]
-            file_input = page.locator('input[type="file"]')
-            if file_input.count() == 0:
+            # TikTok embeds the uploader in an iframe — search all frames
+            file_input = None
+            for frame in page.frames:
+                fi = frame.locator('input[type="file"]')
+                if fi.count() > 0:
+                    file_input = fi.first
+                    break
+            if file_input is None:
                 raise RuntimeError("TikTok upload: no file input found on upload page")
-            file_input.first.set_input_files(str(video_path))
+            file_input.set_input_files(str(video_path))
             time.sleep(5)
 
+            # Determine which frame hosts the uploader UI (same frame as file input)
+            upload_frame = page
+            for frame in page.frames:
+                if frame.locator('div[contenteditable="true"]').count() > 0:
+                    upload_frame = frame
+                    break
+
             # Dismiss blocking modal (e.g. "Turn on content checks?") — click Cancel
-            dialog = page.locator('[role="dialog"]')
+            dialog = upload_frame.locator('[role="dialog"]')
             if dialog.count() > 0:
                 cancel = dialog.locator('button').first
                 cancel.dispatch_event("click")
                 time.sleep(1)
 
             # Fill caption — dispatch_event click to focus, then type
-            caption_el = page.locator('div[contenteditable="true"]').first
+            caption_el = upload_frame.locator('div[contenteditable="true"]').first
             caption_el.dispatch_event("click")
             time.sleep(0.3)
-            page.keyboard.type(f"{caption}\n\n{HASHTAGS}")
+            upload_frame.evaluate(f'document.execCommand("insertText", false, {json.dumps(caption + chr(10) + chr(10) + HASHTAGS)})')
             time.sleep(1)
 
             # Set privacy to Everyone/Public before posting
             for privacy_txt in ["Everyone", "ทุกคน", "公开"]:
-                lc = page.locator(f'button:has-text("{privacy_txt}")')
+                lc = upload_frame.locator(f'button:has-text("{privacy_txt}")')
                 if lc.count() > 0:
                     lc.first.dispatch_event("click")
                     time.sleep(0.5)
@@ -86,7 +90,7 @@ def post_clip(video_path: Path, caption: str) -> str:
 
             # Post — dispatch_event bypasses overlay pointer-events check
             for txt in ["Post", "投稿", "โพสต์"]:
-                lc = page.locator(f'button:has-text("{txt}")')
+                lc = upload_frame.locator(f'button:has-text("{txt}")')
                 if lc.count() > 0:
                     lc.last.scroll_into_view_if_needed()
                     lc.last.dispatch_event("click")

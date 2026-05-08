@@ -33,7 +33,12 @@ def _get_ig_client() -> "Client | None":
         return None
     try:
         cl = Client()
+        session_file = Path(config.IG_SESSION_FILE)
+        if session_file.exists():
+            cl.load_settings(str(session_file))
         cl.login(config.IG_USERNAME, config.IG_PASSWORD)
+        session_file.parent.mkdir(parents=True, exist_ok=True)
+        cl.dump_settings(str(session_file))
         _ig_client = cl
         return _ig_client
     except Exception as e:
@@ -93,16 +98,9 @@ def _repost_tiktok(post: dict) -> bool:
         data = json.loads(session_file.read_text())
         cookies = data.get("cookies", [])
         with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=True,
-                args=["--disable-blink-features=AutomationControlled", "--no-sandbox"],
-            )
+            browser = p.webkit.launch(headless=True)
             ctx = browser.new_context(
                 viewport={"width": 1280, "height": 900},
-                user_agent=(
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-                ),
             )
             ctx.add_cookies(cookies)
             page = ctx.new_page()

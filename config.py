@@ -52,3 +52,4 @@ TREND_MIN_LIKES          = int(os.getenv("TREND_MIN_LIKES", "1000"))
 TREND_TOP_N              = int(os.getenv("TREND_TOP_N", "3"))
 TREND_RESHARE_ENABLED    = os.getenv("TREND_RESHARE_ENABLED", "true").lower() == "true"
 TIKTOKAPI_ENABLED        = os.getenv("TIKTOKAPI_ENABLED", "true").lower() == "true"
+IG_SESSION_FILE          = os.getenv("IG_SESSION_FILE", "assets/ig_session.json")
