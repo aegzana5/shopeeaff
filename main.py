@@ -210,7 +210,7 @@ def run_trend_cycle():
                 clip = generate_affiliate_clip(item, post)
                 post_affiliate_clip(clip, item)
         except Exception as e:
-            log.error("Trend post %s failed: %s", post["post_id"], e)
+            log.error("Trend post %s failed: %s", post.get("post_id", "unknown"), e)
 
     signals = extract_signals(posts)
     save_signals(signals)
