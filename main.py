@@ -35,6 +35,16 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 
+def _inject_link(caption: str, url: str) -> str:
+    """Replace TikTok bio CTA with direct URL for YouTube/Instagram."""
+    if not url:
+        return caption
+    replaced = caption.replace("ลิ้งค์ใน bio นะ 🔗", f"🛒 {url}")
+    if replaced == caption:
+        replaced = f"{caption}\n🛒 {url}"
+    return replaced
+
+
 def run_post_cycle():
     log.info("Starting post cycle")
 
@@ -207,6 +217,7 @@ def run_video_cycle():
             caption = caption_data["caption"]
             title = item["itemName"][:100]
             affiliate_url = caption_data.get("affiliate_url", "")
+            caption_with_link = _inject_link(caption, affiliate_url)
 
             try:
                 if affiliate_url:
@@ -218,14 +229,14 @@ def run_video_cycle():
                 log.error(f"TikTok post {i} failed: {e}")
 
             try:
-                video_id = post_short(clip_path, title, caption)
+                video_id = post_short(clip_path, title, caption_with_link)
                 log.info(f"YouTube Short posted: {video_id}")
             except Exception as e:
                 log.error(f"YouTube post {i} failed: {e}")
 
             try:
                 from instagram import post_reel_clip
-                post_reel_clip(clip_path, caption)
+                post_reel_clip(clip_path, caption_with_link)
                 log.info(f"Instagram Reel posted: {item['itemName'][:40]}")
             except Exception as e:
                 log.error(f"Instagram Reel post {i} failed: {e}")

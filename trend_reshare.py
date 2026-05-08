@@ -181,6 +181,15 @@ def generate_affiliate_clip(item: dict, post: dict) -> Path:
         return create_beat_hook_clip(item, output_name)
 
 
+def _inject_link(caption: str, url: str) -> str:
+    if not url:
+        return caption
+    replaced = caption.replace("ลิ้งค์ใน bio นะ 🔗", f"🛒 {url}")
+    if replaced == caption:
+        replaced = f"{caption}\n🛒 {url}"
+    return replaced
+
+
 def post_affiliate_clip(clip_path: Path, item: dict) -> None:
     from content_gen import generate_video_caption
     from tiktok import post_clip
@@ -188,9 +197,10 @@ def post_affiliate_clip(clip_path: Path, item: dict) -> None:
     caption_data = generate_video_caption(item)
     caption = caption_data["caption"]
     title = item["itemName"][:100]
+    affiliate_url = item.get("affiliateUrl", "")
+    caption_with_link = _inject_link(caption, affiliate_url)
     try:
         from tiktok import update_bio
-        affiliate_url = item.get("affiliateUrl", "")
         if affiliate_url:
             update_bio(affiliate_url)
         post_clip(clip_path, caption)
@@ -198,13 +208,13 @@ def post_affiliate_clip(clip_path: Path, item: dict) -> None:
     except Exception as e:
         log.error("TikTok affiliate post failed: %s", e)
     try:
-        post_short(clip_path, title, caption)
+        post_short(clip_path, title, caption_with_link)
         log.info("YouTube affiliate posted: %s", item["itemName"][:40])
     except Exception as e:
         log.error("YouTube affiliate post failed: %s", e)
     try:
         from instagram import post_reel_clip
-        post_reel_clip(clip_path, caption)
+        post_reel_clip(clip_path, caption_with_link)
         log.info("Instagram affiliate posted: %s", item["itemName"][:40])
     except Exception as e:
         log.error("Instagram affiliate post failed: %s", e)
