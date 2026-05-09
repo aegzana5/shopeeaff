@@ -38,26 +38,40 @@ def generate_caption(item: dict, post_type: str = "image") -> dict:
     else:
         price_display = str(price) if price else "ราคาพิเศษ"
 
-    prompt = f"""คุณเป็น content creator แฟชั่นไทยบน Instagram เขียน caption ภาษาไทยอย่างเดียว
+    prompt = f"""คุณเป็น content creator แฟชั่นไทยที่เขียน caption ยาวๆ แบบ YouTube — อธิบายสินค้าละเอียด มีข้อมูลจริง ช่วยคนตัดสินใจซื้อ
 
 สินค้า: {item['itemName']}
 ราคา: {price_display} บาท
-คะแนน: {item.get('ratingStar', '')} ดาว
+คะแนน: {item.get('ratingStar', '')} ดาว ({item.get('ratingCount', '')} รีวิว)
+ยอดขาย: {item.get('sold', '')}
 
-โครงสร้าง 4 ส่วน (แต่ละส่วน 1 บรรทัด):
-1. HOOK: สั้น ดึงดูด สร้างความอยากรู้ ใช้ emoji ได้ ไม่เกิน 40 ตัวอักษร
-2. BENEFIT: ทำไมถึงต้องซื้อ พูดเหมือนคุยกับเพื่อน 1-2 บรรทัด
-3. ราคา: เช่น "ราคาแค่ {price_display} บาทเอง 🤑" หรือ "ได้มาแค่ {price_display} บาท"
-4. CTA: เช่น "กดลิ้งค์ใน bio เลย 👆" หรือ "คอมเมนต์ว่า 'สนใจ' 💬"
+เขียน caption ภาษาไทยอย่างเดียว โครงสร้าง:
 
-ห้าม: ภาษาอังกฤษ, hashtag, คำโฆษณา เช่น "สินค้าคุณภาพดี"
-ฟังดูเหมือน gen-z ไทยโพสจริงๆ ไม่ใช่แบรนด์
+บรรทัดแรก: ประโยคเด็ด ดึงดูดความสนใจ ใช้ emoji (เหมือน YouTube thumbnail title)
 
-ส่งแค่ caption เท่านั้น ไม่ต้องมี label ไม่ต้องมี hashtag"""
+[เว้นบรรทัด]
+
+อธิบายสินค้า 4-6 บรรทัด:
+- สินค้านี้คืออะไร ใส่โอกาสไหน เหมาะกับใคร
+- วัสดุ / ผ้า / ฟีเจอร์เด่น (ถ้าอนุมานได้จากชื่อ)
+- ทำไมคนชอบ / รีวิวดี / ขายดี
+- แมทช์กับอะไรได้บ้าง
+ใช้ emoji ประจำแต่ละบรรทัด แต่พอประมาณ
+
+[เว้นบรรทัด]
+
+💰 ราคา {price_display} บาท (บอก value — ถูกหรือคุ้มยังไง)
+
+[เว้นบรรทัด]
+
+🛒 ช้อปได้เลยที่ลิ้งค์ใน bio หรือคอมเมนต์ "สนใจ" แล้วจะส่งลิ้งค์ให้
+
+ห้าม: hashtag, ภาษาอังกฤษ (ยกเว้นชื่อแบรนด์), คำโฆษณาทั่วไป เช่น "สินค้าคุณภาพ"
+เขียนเหมือนคนจริงๆ ไม่ใช่ bot"""
 
     message = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=300,
+        max_tokens=600,
         messages=[{"role": "user", "content": prompt}],
     )
     caption_body = message.content[0].text.strip()

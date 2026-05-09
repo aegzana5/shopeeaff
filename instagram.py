@@ -156,12 +156,15 @@ def _do_post(page, image_path: Path, caption: str):
     file_input.set_input_files(str(image_path))
     time.sleep(3)
 
+    # Target inner contenteditable first — outer wrapper div won't commit React state
     CAPTION_SELECTORS = [
-        '[aria-label="Write a caption..."]',
-        'textarea[aria-label*="caption"]',
-        'div[aria-label*="caption"]',
-        'div[role="textbox"]',
+        '[aria-label="Write a caption..."] div[contenteditable="true"]',
+        '[aria-label*="caption"] div[contenteditable="true"]',
+        'div[aria-label*="คำบรรยาย"] div[contenteditable="true"]',
         'div[contenteditable="true"]',
+        'textarea[aria-label*="caption"]',
+        'textarea[aria-label*="คำบรรยาย"]',
+        'textarea',
     ]
 
     # Next through all steps until caption field appears (crop → filter → adjust → caption)
@@ -181,6 +184,13 @@ def _do_post(page, image_path: Path, caption: str):
         if lc.count() > 0:
             lc.first.click()
             time.sleep(0.3)
+            # JS focus on the exact contenteditable to ensure keyboard events commit
+            page.evaluate("""() => {
+                const el = document.querySelector('[aria-label="Write a caption..."] [contenteditable]')
+                    || document.querySelector('[contenteditable="true"]');
+                if (el) { el.focus(); el.click(); }
+            }""")
+            time.sleep(0.2)
             page.keyboard.type(caption, delay=30)
             time.sleep(1)
             log.info(f"Caption filled via selector: {sel}")
@@ -189,7 +199,14 @@ def _do_post(page, image_path: Path, caption: str):
     if not caption_filled:
         log.warning("Caption field not found — post will have no caption")
 
-    page.evaluate("() => { [...document.querySelectorAll('[role=\"dialog\"] [role=\"button\"]')].find(b => b.innerText.trim() === 'Share')?.click() }")
+    # Use Playwright click on Share button (JS click may not trigger React handler)
+    share_btn = page.locator('[role="dialog"] [role="button"]').filter(has_text="Share")
+    if share_btn.count() == 0:
+        share_btn = page.get_by_role("button", name="Share")
+    if share_btn.count() > 0:
+        share_btn.last.click()
+    else:
+        page.evaluate("() => { [...document.querySelectorAll('[role=\"dialog\"] [role=\"button\"]')].find(b => b.innerText.trim() === 'Share')?.click() }")
     for _ in range(15):
         time.sleep(2)
         dlg = page.evaluate("() => { let d = document.querySelector('[role=\"dialog\"]'); return d ? d.innerText : ''; }")
@@ -212,27 +229,35 @@ def _verify_and_fix_caption(page, caption: str) -> bool:
         page.evaluate("() => { document.querySelector(\"a[href*='/p/'], a[href*='/reel/']\")?.click() }")
         page.wait_for_selector('[role="dialog"]', timeout=15000)
 
-        CAPTION_CONTAINER_SELS = [
-            '[role="dialog"] div._a9zs',
-            '[role="dialog"] ._a9zs',
-            '[role="dialog"] article div[class*="caption"]',
-        ]
-        actual_caption = ""
-        for sel in CAPTION_CONTAINER_SELS:
-            el = page.locator(sel)
-            if el.count() > 0:
-                text = el.first.inner_text().strip()
-                if text:
-                    actual_caption = text
-                    break
+        # Check for caption text — try IG's class-based and structural selectors
+        actual_caption = page.evaluate("""() => {
+            const candidates = [
+                '[role="dialog"] div._a9zs',
+                '[role="dialog"] ._a9zs',
+                '[role="dialog"] article div[class*="caption"]',
+                '[role="dialog"] article [data-testid*="caption"]',
+                '[role="dialog"] ul li span',
+            ];
+            for (const sel of candidates) {
+                const el = document.querySelector(sel);
+                if (el && el.innerText.trim().length > 3) return el.innerText.trim();
+            }
+            // Broader: any span inside article with substantial text (not username)
+            const spans = document.querySelectorAll('[role="dialog"] article span');
+            for (const s of spans) {
+                const t = s.innerText.trim();
+                if (t.length > 10 && !s.closest('a')) return t;
+            }
+            return '';
+        }""")
 
         if actual_caption:
-            log.info("Caption verified OK")
+            log.info(f"Caption verified OK: {actual_caption[:40]!r}")
             return True
 
         page.locator(
-            '[aria-label="More options"], [aria-label="มีตัวเลือกเพิ่มเติม"]'
-        ).first.click()
+            '[aria-label="More options"], [aria-label="มีตัวเลือกเพิ่มเติม"], [aria-label="More"]'
+        ).first.click(timeout=8000)
         page.wait_for_selector('[role="menu"]', timeout=5000)
         page.get_by_role("menuitem", name="Edit").click()
 
@@ -345,15 +370,15 @@ def post_reel_clip(video_path: Path, caption: str, hashtags: str = "") -> str:
             file_input.set_input_files(str(video_path))
             time.sleep(8)
 
-            # Click through Next steps until caption field appears
+            # Target inner contenteditable — outer wrapper won't commit React state
             CAPTION_SELECTORS = [
-                '[aria-label="Write a caption..."]',
-                '[aria-label*="Write a caption"]',
-                'textarea[aria-label*="caption"]',
-                'div[aria-label*="caption"]',
-                'div[aria-label*="คำบรรยาย"]',
-                'div[role="textbox"]',
+                '[aria-label="Write a caption..."] div[contenteditable="true"]',
+                '[aria-label*="Write a caption"] div[contenteditable="true"]',
+                '[aria-label*="caption"] div[contenteditable="true"]',
+                '[aria-label*="คำบรรยาย"] div[contenteditable="true"]',
                 'div[contenteditable="true"]',
+                'textarea[aria-label*="caption"]',
+                'textarea[aria-label*="คำบรรยาย"]',
                 'textarea',
             ]
 
@@ -387,6 +412,13 @@ def post_reel_clip(video_path: Path, caption: str, hashtags: str = "") -> str:
             if lc is not None:
                 lc.click()
                 time.sleep(0.3)
+                # JS focus on exact contenteditable so keyboard events commit to React
+                page.evaluate("""() => {
+                    const el = document.querySelector('[aria-label="Write a caption..."] [contenteditable]')
+                        || document.querySelector('[contenteditable="true"]');
+                    if (el) { el.focus(); el.click(); }
+                }""")
+                time.sleep(0.2)
                 page.keyboard.type(caption, delay=30)
                 time.sleep(1)
                 log.info(f"Reel caption filled via selector: {sel}")
@@ -416,8 +448,14 @@ def post_reel_clip(video_path: Path, caption: str, hashtags: str = "") -> str:
                 diag = page.evaluate("() => { const d = document.querySelector('[role=\"dialog\"]'); return d ? d.innerText.slice(0, 300) : document.body.innerText.slice(0, 300); }")
                 log.warning(f"Reel caption field not found — post will have no caption. Page text: {diag!r}")
 
-            # Share
-            page.evaluate("() => { [...document.querySelectorAll('[role=\"dialog\"] [role=\"button\"]')].find(b => b.innerText.trim() === 'Share')?.click() }")
+            # Share — use Playwright click so React button handler fires
+            share_btn = page.locator('[role="dialog"] [role="button"]').filter(has_text="Share")
+            if share_btn.count() == 0:
+                share_btn = page.get_by_role("button", name="Share")
+            if share_btn.count() > 0:
+                share_btn.last.click()
+            else:
+                page.evaluate("() => { [...document.querySelectorAll('[role=\"dialog\"] [role=\"button\"]')].find(b => b.innerText.trim() === 'Share')?.click() }")
             for _ in range(15):
                 time.sleep(2)
                 dlg = page.evaluate("() => { let d = document.querySelector('[role=\"dialog\"]'); return d ? d.innerText : ''; }")
