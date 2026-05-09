@@ -15,7 +15,7 @@ SHOPEE_FEED_CACHE_HOURS = int(os.getenv("SHOPEE_FEED_CACHE_HOURS", "6"))
 
 POST_TIMES = os.getenv(
     "POST_TIMES",
-    "08:00,09:30,11:00,12:30,14:00,15:30,17:00,18:30,20:00,21:30",
+    "07:00,08:00,09:00,11:30,12:30,19:00,20:00,21:00,21:30",
 ).split(",")
 TIMEZONE = os.getenv("TIMEZONE", "Asia/Bangkok")
 
