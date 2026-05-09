@@ -192,6 +192,8 @@ def _do_post(page, image_path: Path, caption: str):
         if "Post shared" in dlg or "Your post" in dlg:
             break
 
+    _verify_and_fix_caption(page, caption)
+
 
 def _verify_and_fix_caption(page, caption: str) -> bool:
     try:
