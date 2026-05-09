@@ -21,53 +21,52 @@ HASHTAGS_TIKTOK = [
     "#fyp", "#ShopeeTH", "#ช้อปปี้ไทย",
 ]
 
+HASHTAGS_IG_TH = [
+    "#แฟชั่น", "#เสื้อผ้าผู้หญิง", "#ของถูก", "#ลดราคา", "#shopee",
+    "#แฟชั่นราคาถูก", "#สไตล์เกาหลี", "#ชุดเซ็ต", "#เสื้อผ้าออนไลน์", "#ootd",
+    "#แฟชั่นไทย", "#เทรนด์แฟชั่น", "#ไอเดียแต่งตัว", "#ของดีในShopee",
+    "#เสื้อผ้าน่ารัก", "#แฟชั่นออนไลน์", "#ช้อปออนไลน์", "#Shopeeไทย",
+    "#ลุคน่ารัก", "#สไตล์ไทย",
+]
+
 
 def generate_caption(item: dict, post_type: str = "image") -> dict:
-    """Generate bilingual Thai+EN caption with CTA and hashtags."""
+    """Generate Thai-only Instagram caption: hook / benefit / price / CTA."""
     price = item.get("priceDisplay") or item.get("priceMin") or item.get("price", "")
     if isinstance(price, (int, float)) and price > 1000:
         price_display = f"฿{float(price)/100000:.0f}"
     else:
         price_display = str(price) if price else "ราคาพิเศษ"
 
-    prompt = f"""You are a Thai fashion influencer content creator for Instagram @trendyinthai.
+    prompt = f"""คุณเป็น content creator แฟชั่นไทยบน Instagram เขียน caption ภาษาไทยอย่างเดียว
 
-Product: {item['itemName']}
-Price: {price_display}
-Shop: {item.get('shopName', '')}
-Rating: {item.get('ratingStar', '')} stars
-Post type: {post_type}
+สินค้า: {item['itemName']}
+ราคา: {price_display} บาท
+คะแนน: {item.get('ratingStar', '')} ดาว
 
-Write an Instagram caption in TWO sections:
-1. Thai section (2-3 sentences): Exciting, trendy, FOMO-inducing. Mention price if good deal. End with call-to-action to click link in bio.
-2. English section (2-3 sentences): Same energy, translated naturally (not word-for-word).
+โครงสร้าง 4 ส่วน (แต่ละส่วน 1 บรรทัด):
+1. HOOK: สั้น ดึงดูด สร้างความอยากรู้ ใช้ emoji ได้ ไม่เกิน 40 ตัวอักษร
+2. BENEFIT: ทำไมถึงต้องซื้อ พูดเหมือนคุยกับเพื่อน 1-2 บรรทัด
+3. ราคา: เช่น "ราคาแค่ {price_display} บาทเอง 🤑" หรือ "ได้มาแค่ {price_display} บาท"
+4. CTA: เช่น "กดลิ้งค์ใน bio เลย 👆" หรือ "คอมเมนต์ว่า 'สนใจ' 💬"
 
-Rules:
-- Thai first, then English
-- Use emojis naturally
-- Sound like real influencer, not ad
-- CTA: "ลิ้งค์ใน bio + ซื้อได้ที่ Shopee 👆" (Thai) and "Shop on Shopee — link in bio 👆" (English)
-- Keep under 200 words total
-- NO fake urgency like "only 3 left"
+ห้าม: ภาษาอังกฤษ, hashtag, คำโฆษณา เช่น "สินค้าคุณภาพดี"
+ฟังดูเหมือน gen-z ไทยโพสจริงๆ ไม่ใช่แบรนด์
 
-Return ONLY the caption text, no labels."""
+ส่งแค่ caption เท่านั้น ไม่ต้องมี label ไม่ต้องมี hashtag"""
 
     message = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=400,
+        max_tokens=300,
         messages=[{"role": "user", "content": prompt}],
     )
     caption_body = message.content[0].text.strip()
-
-    top_hashtags = " ".join(HASHTAGS_TH[:6] + HASHTAGS_EN[:5])
-    affiliate_url = item.get("affiliateUrl", "")
-    link_line = f"\n🛒 {affiliate_url}" if affiliate_url else ""
-    full_caption = f"{caption_body}\n\n{top_hashtags}{link_line}"
+    hashtags = " ".join(HASHTAGS_IG_TH)
 
     return {
-        "caption": full_caption,
+        "caption": caption_body,
         "caption_body": caption_body,
-        "hashtags": top_hashtags,
+        "hashtags": hashtags,
     }
 
 
@@ -139,13 +138,10 @@ Return ONLY the caption (4 lines, no hashtags)."""
     )
     caption_body = message.content[0].text.strip()
 
-    hashtags = " ".join(HASHTAGS_TIKTOK)
-    full_caption = f"{caption_body}\n\n{hashtags}"
-
     return {
-        "caption": full_caption,
+        "caption": caption_body,
         "caption_body": caption_body,
-        "hashtags": hashtags,
+        "hashtags": " ".join(HASHTAGS_IG_TH),
         "affiliate_url": item.get("affiliateUrl", ""),
     }
 
