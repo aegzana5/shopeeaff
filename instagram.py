@@ -340,8 +340,8 @@ def post_reel_clip(video_path: Path, caption: str) -> str:
             frm, sel, lc = _find_caption_field(page)
             if lc is not None:
                 lc.click()
-                time.sleep(0.5)
-                lc.fill(caption)
+                time.sleep(0.3)
+                page.keyboard.type(caption, delay=30)
                 time.sleep(1)
                 log.info(f"Reel caption filled via selector: {sel}")
                 caption_filled = True

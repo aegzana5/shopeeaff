@@ -124,3 +124,48 @@ def test_do_post_uses_keyboard_type_not_fill():
     page.keyboard.type.assert_called_once_with("ทดสอบ caption", delay=30)
     caption_loc.first.click.assert_called_once()
     caption_loc.first.fill.assert_not_called()
+
+
+def test_post_reel_clip_caption_uses_keyboard_type():
+    """post_reel_clip must use keyboard.type for caption, not lc.fill()."""
+    from pathlib import Path
+    from instagram import post_reel_clip
+
+    page = MagicMock()
+    page.url = "https://www.instagram.com/"
+    page.frames = []
+
+    file_loc = MagicMock()
+    file_loc.count.return_value = 1
+    file_loc.first = MagicMock()
+
+    caption_lc = MagicMock()
+    caption_lc.count.return_value = 1
+    caption_lc.first = MagicMock()
+
+    fill_calls = []
+    caption_lc.first.fill.side_effect = fill_calls.append
+
+    def locator_side(sel):
+        if 'type="file"' in sel:
+            return file_loc
+        if any(k in sel for k in ['caption', 'textbox', 'contenteditable', 'textarea']):
+            return caption_lc
+        return MagicMock(count=MagicMock(return_value=0))
+
+    page.locator.side_effect = locator_side
+    page.get_by_role.return_value = MagicMock(count=MagicMock(return_value=0))
+    page.evaluate.return_value = "Reel shared"
+
+    ctx = MagicMock()
+    ctx.new_page.return_value = page
+    browser = MagicMock()
+
+    with patch("instagram._make_context", return_value=(browser, ctx)), \
+         patch("instagram._ensure_logged_in", return_value=True), \
+         patch("instagram._verify_and_fix_caption", return_value=True), \
+         patch("instagram.time"):
+        post_reel_clip(Path("/tmp/fake.mp4"), "ทดสอบ reel")
+
+    page.keyboard.type.assert_called_with("ทดสอบ reel", delay=30)
+    assert fill_calls == [], f"fill() called unexpectedly with: {fill_calls}"
