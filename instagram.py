@@ -338,6 +338,8 @@ def post_reel_clip(video_path: Path, caption: str) -> str:
                 if "Post shared" in dlg or "Your post" in dlg:
                     break
 
+            _verify_and_fix_caption(page, caption)
+
             ctx.storage_state(path=str(STATE_FILE))
             browser.close()
             return "posted"
