@@ -178,6 +178,7 @@ def _do_post(page, image_path: Path, caption: str):
         lc = page.locator(sel)
         if lc.count() > 0:
             lc.first.click()
+            time.sleep(0.3)
             page.keyboard.type(caption, delay=30)
             time.sleep(1)
             log.info(f"Caption filled via selector: {sel}")

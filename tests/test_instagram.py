@@ -122,4 +122,5 @@ def test_do_post_uses_keyboard_type_not_fill():
         _do_post(page, Path("/tmp/fake.jpg"), "ทดสอบ caption")
 
     page.keyboard.type.assert_called_once_with("ทดสอบ caption", delay=30)
+    caption_loc.first.click.assert_called_once()
     caption_loc.first.fill.assert_not_called()
