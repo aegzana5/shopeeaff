@@ -172,16 +172,19 @@ def _do_post(page, image_path: Path, caption: str):
         'div[aria-label*="caption"]',
         'div[contenteditable="true"]',
     ]
+    caption_filled = False
     for sel in caption_selectors:
         lc = page.locator(sel)
         if lc.count() > 0:
             lc.first.click()
             time.sleep(0.5)
-            page.keyboard.press("Control+a")
-            page.keyboard.press("Delete")
             page.keyboard.type(caption, delay=20)
             time.sleep(1)
+            log.info(f"Caption filled via selector: {sel}")
+            caption_filled = True
             break
+    if not caption_filled:
+        log.warning("Caption field not found — post will have no caption")
 
     page.evaluate("() => { [...document.querySelectorAll('[role=\"dialog\"] [role=\"button\"]')].find(b => b.innerText.trim() === 'Share')?.click() }")
     for _ in range(15):
@@ -259,16 +262,19 @@ def post_reel_clip(video_path: Path, caption: str) -> str:
                 'div[aria-label*="caption"]',
                 'div[contenteditable="true"]',
             ]
+            caption_filled = False
             for sel in caption_selectors:
                 lc = page.locator(sel)
                 if lc.count() > 0:
                     lc.first.click()
                     time.sleep(0.5)
-                    page.keyboard.press("Control+a")
-                    page.keyboard.press("Delete")
                     page.keyboard.type(caption, delay=20)
                     time.sleep(1)
+                    log.info(f"Reel caption filled via selector: {sel}")
+                    caption_filled = True
                     break
+            if not caption_filled:
+                log.warning("Reel caption field not found — post will have no caption")
 
             # Share
             page.evaluate("() => { [...document.querySelectorAll('[role=\"dialog\"] [role=\"button\"]')].find(b => b.innerText.trim() === 'Share')?.click() }")
