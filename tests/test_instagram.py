@@ -74,3 +74,52 @@ def test_verify_caption_exception_returns_false():
         result = _verify_and_fix_caption(page, "caption")
 
     assert result is False
+
+
+def test_do_post_uses_keyboard_type_not_fill():
+    """_do_post must use keyboard.type for caption, not fill()."""
+    from pathlib import Path
+    from instagram import _do_post
+
+    page = MagicMock()
+    page.url = "https://www.instagram.com/"
+    page.frames = []
+
+    # file input found on first try
+    file_loc = MagicMock()
+    file_loc.count.return_value = 1
+    file_loc.first = MagicMock()
+
+    # caption field found immediately
+    caption_loc = MagicMock()
+    caption_loc.count.return_value = 1
+    caption_loc.first = MagicMock()
+
+    # "Next" button not found (already on caption step)
+    next_btn = MagicMock()
+    next_btn.count.return_value = 0
+
+    def locator_side(sel):
+        if 'type="file"' in sel:
+            return file_loc
+        # Match actual CAPTION_SELECTORS
+        if sel in [
+            '[aria-label="Write a caption..."]',
+            'textarea[aria-label*="caption"]',
+            'div[aria-label*="caption"]',
+            'div[role="textbox"]',
+            'div[contenteditable="true"]',
+        ]:
+            return caption_loc
+        return MagicMock(count=MagicMock(return_value=0))
+
+    page.locator.side_effect = locator_side
+    page.get_by_role.return_value = next_btn
+    page.get_by_text.return_value = MagicMock()
+    page.evaluate.return_value = "Post shared"
+
+    with patch("instagram.time"):
+        _do_post(page, Path("/tmp/fake.jpg"), "ทดสอบ caption")
+
+    page.keyboard.type.assert_called_once_with("ทดสอบ caption", delay=30)
+    caption_loc.first.fill.assert_not_called()
