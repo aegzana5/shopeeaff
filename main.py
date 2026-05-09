@@ -144,16 +144,12 @@ def _save_video_history(history: set) -> None:
     tmp.rename(_VIDEO_HISTORY)
 
 
-def run_video_cycle():
-    log.info("Starting video cycle")
-
-    signals = load_signals()
-    trending_hooks = signals.get("hooks", [])
-
+def _fetch_clip_items() -> tuple[list, set]:
+    """Return (fresh_items_up_to_CLIPS_PER_DAY, history_set)."""
     items = get_trending_fashion()
     if not items:
         log.error("No items from Shopee feed")
-        return
+        return [], set()
 
     history = _load_video_history()
     all_items = pick_top_items(items, n=min(len(items), 200))
@@ -164,78 +160,96 @@ def run_video_cycle():
         history = set()
         fresh = all_items
 
-    # 1 item per clip
-    clip_items = fresh[:CLIPS_PER_DAY]
+    return fresh[:CLIPS_PER_DAY], history
+
+
+def _make_clip(item: dict, i: int, signals: dict) -> tuple:
+    """Build one video clip. Returns (clip_path, title, caption_with_link)."""
+    trending_hooks = signals.get("hooks", [])
+    top_clip_types = signals.get("top_clip_types", [])
 
     CLIP_TYPES = [
         "price_reveal", "before_after", "pov_meme", "price_shock", "beat_hook",
-        "outfit", "outfit",  # weighted double for higher frequency
+        "outfit", "outfit",
     ]
-    CLIP_TYPES = CLIP_TYPES + signals.get("top_clip_types", [])
+    CLIP_TYPES = CLIP_TYPES + top_clip_types
+
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    clip_type = random.choice(CLIP_TYPES)
+    clip_name = f"clip_{ts}_{i}"
+
+    if clip_type == "outfit":
+        from outfit_matcher import find_outfit_matches
+        from image_ai import generate_model_image, remove_bg
+        matches = find_outfit_matches(item, n=OUTFIT_MATCHES)
+        caption_data = generate_outfit_caption(item, matches)
+        caption = caption_data["caption"]
+        caption_body = caption_data.get("caption_body", caption)
+        title = item["itemName"][:100]
+        caption_with_link = caption_data.get("caption_with_links", caption)
+        vo_path = tts.generate_voiceover_from_text(caption_body, clip_name)
+        model_img = generate_model_image(item, clip_name) or remove_bg(item.get("imageUrl", ""), clip_name)
+        clip_path = create_outfit_clip(
+            item, matches, clip_name,
+            model_image_path=model_img,
+            voiceover_path=vo_path,
+        )
+    else:
+        caption_data = generate_video_caption(item, extra_hooks=trending_hooks or None)
+        caption = caption_data["caption"]
+        caption_body = caption_data.get("caption_body", caption)
+        title = item["itemName"][:100]
+        affiliate_url = caption_data.get("affiliate_url", "")
+        caption_with_link = _inject_link(caption, affiliate_url)
+        vo_path = tts.generate_voiceover_from_text(caption_body, clip_name)
+        keywords = stock_media._extract_keywords(item["itemName"])
+        bg_path = stock_media.fetch_bg_video(keywords, clip_name)
+        if clip_type == "before_after":
+            clip_path = create_before_after_clip(item, clip_name, voiceover_path=vo_path)
+        elif clip_type == "pov_meme":
+            clip_path = create_pov_meme_clip(item, clip_name, voiceover_path=vo_path)
+        elif clip_type == "price_shock":
+            clip_path = create_price_shock_clip(item, clip_name, voiceover_path=vo_path)
+        elif clip_type == "beat_hook":
+            clip_path = create_beat_hook_clip(item, clip_name, voiceover_path=vo_path)
+        else:
+            clip_path = create_price_reveal_clip(
+                item, clip_name, voiceover_path=vo_path, bg_video_path=bg_path
+            )
+
+    return clip_path, title, caption_with_link
+
+
+def _distribute_clip(clip_path, title: str, caption: str, item_name: str = "") -> None:
+    """Post clip to all active platforms. Each platform fails independently."""
+    try:
+        yt_title = title.strip() or item_name[:100] or "Fashion Find"
+        video_id = post_short(clip_path, yt_title, caption)
+        log.info(f"YouTube Short posted: {video_id}")
+    except Exception as e:
+        log.error(f"YouTube post failed: {e}")
+
+    try:
+        from instagram import post_reel_clip
+        post_reel_clip(clip_path, caption)
+        log.info(f"Instagram Reel posted: {item_name[:40]}")
+    except Exception as e:
+        log.error(f"Instagram Reel post failed: {e}")
+
+
+def run_video_cycle():
+    log.info("Starting video cycle")
+
+    signals = load_signals()
+    clip_items, history = _fetch_clip_items()
+    if not clip_items:
+        return
 
     posted = 0
     for i, item in enumerate(clip_items):
         try:
-            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-            clip_type = random.choice(CLIP_TYPES)
-            clip_name = f"clip_{ts}_{i}"
-
-            if clip_type == "outfit":
-                # Outfit clip: find matching products, generate model image, combined caption
-                from outfit_matcher import find_outfit_matches
-                from image_ai import generate_model_image, remove_bg
-                matches = find_outfit_matches(item, n=OUTFIT_MATCHES)
-                caption_data = generate_outfit_caption(item, matches)
-                caption = caption_data["caption"]
-                caption_body = caption_data.get("caption_body", caption)
-                title = item["itemName"][:100]
-                caption_with_link = caption_data.get("caption_with_links", caption)
-                affiliate_url = item.get("affiliateUrl", "")
-                vo_path = tts.generate_voiceover_from_text(caption_body, clip_name)
-                model_img = generate_model_image(item, clip_name) or remove_bg(item.get("imageUrl", ""), clip_name)
-                clip_path = create_outfit_clip(
-                    item, matches, clip_name,
-                    model_image_path=model_img,
-                    voiceover_path=vo_path,
-                )
-            else:
-                # Standard single-item clip
-                caption_data = generate_video_caption(item, extra_hooks=trending_hooks or None)
-                caption = caption_data["caption"]
-                caption_body = caption_data.get("caption_body", caption)
-                title = item["itemName"][:100]
-                affiliate_url = caption_data.get("affiliate_url", "")
-                caption_with_link = _inject_link(caption, affiliate_url)
-                vo_path = tts.generate_voiceover_from_text(caption_body, clip_name)
-                keywords = stock_media._extract_keywords(item["itemName"])
-                bg_path = stock_media.fetch_bg_video(keywords, clip_name)
-                if clip_type == "before_after":
-                    clip_path = create_before_after_clip(item, clip_name, voiceover_path=vo_path)
-                elif clip_type == "pov_meme":
-                    clip_path = create_pov_meme_clip(item, clip_name, voiceover_path=vo_path)
-                elif clip_type == "price_shock":
-                    clip_path = create_price_shock_clip(item, clip_name, voiceover_path=vo_path)
-                elif clip_type == "beat_hook":
-                    clip_path = create_beat_hook_clip(item, clip_name, voiceover_path=vo_path)
-                else:
-                    clip_path = create_price_reveal_clip(
-                        item, clip_name, voiceover_path=vo_path, bg_video_path=bg_path
-                    )
-
-            try:
-                yt_title = title.strip() or item.get("itemName", "Fashion Find")[:100]
-                video_id = post_short(clip_path, yt_title, caption_with_link)
-                log.info(f"YouTube Short posted: {video_id}")
-            except Exception as e:
-                log.error(f"YouTube post {i} failed: {e}")
-
-            try:
-                from instagram import post_reel_clip
-                post_reel_clip(clip_path, caption_with_link)
-                log.info(f"Instagram Reel posted: {item['itemName'][:40]}")
-            except Exception as e:
-                log.error(f"Instagram Reel post {i} failed: {e}")
-
+            clip_path, title, caption = _make_clip(item, i, signals)
+            _distribute_clip(clip_path, title, caption, item.get("itemName", ""))
             history.add(str(item.get("itemId", "")))
             posted += 1
         except Exception as e:
