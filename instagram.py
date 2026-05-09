@@ -99,7 +99,7 @@ def _ensure_logged_in(page) -> bool:
     return True
 
 
-def post_image(image_path: Path, caption: str) -> str:
+def post_image(image_path: Path, caption: str, hashtags: str = "") -> str:
     """Post single image via Playwright web interface. Returns 'posted'."""
     from playwright.sync_api import sync_playwright
 
@@ -119,6 +119,8 @@ def post_image(image_path: Path, caption: str) -> str:
 
         try:
             _do_post(page, image_path, caption)
+            if hashtags:
+                _post_first_comment(page, hashtags)
             ctx.storage_state(path=str(STATE_FILE))
             browser.close()
             return "posted"
@@ -292,7 +294,7 @@ def post_reel(video_path: Path, caption: str) -> str:
     raise NotImplementedError("Reel posting via Playwright not yet implemented")
 
 
-def post_reel_clip(video_path: Path, caption: str) -> str:
+def post_reel_clip(video_path: Path, caption: str, hashtags: str = "") -> str:
     """Cross-post a video clip to Instagram Reels via Playwright web interface. Returns 'posted'."""
     from playwright.sync_api import sync_playwright
 
@@ -423,6 +425,8 @@ def post_reel_clip(video_path: Path, caption: str) -> str:
                     break
 
             _verify_and_fix_caption(page, caption)
+            if hashtags:
+                _post_first_comment(page, hashtags)
 
             ctx.storage_state(path=str(STATE_FILE))
             browser.close()

@@ -228,3 +228,101 @@ def test_post_first_comment_exception_returns_false():
         result = _post_first_comment(page, "#แฟชั่น")
 
     assert result is False
+
+
+def test_post_image_calls_post_first_comment_when_hashtags_given():
+    """post_image calls _post_first_comment when hashtags param provided."""
+    from pathlib import Path
+    from instagram import post_image
+
+    page = MagicMock()
+    page.url = "https://www.instagram.com/"
+    page.frames = []
+
+    file_loc = MagicMock()
+    file_loc.count.return_value = 1
+    file_loc.first = MagicMock()
+
+    caption_loc = MagicMock()
+    caption_loc.count.return_value = 1
+    caption_loc.first = MagicMock()
+
+    def locator_side(sel):
+        if 'type="file"' in sel:
+            return file_loc
+        if sel in [
+            '[aria-label="Write a caption..."]',
+            'textarea[aria-label*="caption"]',
+            'div[aria-label*="caption"]',
+            'div[role="textbox"]',
+            'div[contenteditable="true"]',
+        ]:
+            return caption_loc
+        return MagicMock(count=MagicMock(return_value=0))
+
+    page.locator.side_effect = locator_side
+    page.get_by_role.return_value = MagicMock(count=MagicMock(return_value=0))
+    page.get_by_text.return_value = MagicMock()
+    page.evaluate.return_value = "Post shared"
+
+    ctx = MagicMock()
+    ctx.new_page.return_value = page
+    browser = MagicMock()
+
+    with patch("instagram._make_context", return_value=(browser, ctx)), \
+         patch("instagram._ensure_logged_in", return_value=True), \
+         patch("instagram._verify_and_fix_caption", return_value=True), \
+         patch("instagram._post_first_comment") as mock_first_comment, \
+         patch("instagram.time"):
+        post_image(Path("/tmp/fake.jpg"), "caption", hashtags="#แฟชั่น #ootd")
+
+    mock_first_comment.assert_called_once_with(page, "#แฟชั่น #ootd")
+
+
+def test_post_image_no_hashtags_no_post_first_comment():
+    """post_image does NOT call _post_first_comment when hashtags empty."""
+    from pathlib import Path
+    from instagram import post_image
+
+    page = MagicMock()
+    page.url = "https://www.instagram.com/"
+    page.frames = []
+
+    file_loc = MagicMock()
+    file_loc.count.return_value = 1
+    file_loc.first = MagicMock()
+
+    caption_loc = MagicMock()
+    caption_loc.count.return_value = 1
+    caption_loc.first = MagicMock()
+
+    def locator_side(sel):
+        if 'type="file"' in sel:
+            return file_loc
+        if sel in [
+            '[aria-label="Write a caption..."]',
+            'textarea[aria-label*="caption"]',
+            'div[aria-label*="caption"]',
+            'div[role="textbox"]',
+            'div[contenteditable="true"]',
+        ]:
+            return caption_loc
+        return MagicMock(count=MagicMock(return_value=0))
+
+    page.locator.side_effect = locator_side
+    page.get_by_role.return_value = MagicMock(count=MagicMock(return_value=0))
+    page.get_by_text.return_value = MagicMock()
+    page.evaluate.return_value = "Post shared"
+
+    ctx = MagicMock()
+    ctx.new_page.return_value = page
+    browser = MagicMock()
+
+    with patch("instagram._make_context", return_value=(browser, ctx)), \
+         patch("instagram._ensure_logged_in", return_value=True), \
+         patch("instagram._verify_and_fix_caption", return_value=True), \
+         patch("instagram._post_first_comment") as mock_first_comment, \
+         patch("instagram.time"):
+        post_image(Path("/tmp/fake.jpg"), "caption")  # no hashtags
+
+    mock_first_comment.assert_not_called()
