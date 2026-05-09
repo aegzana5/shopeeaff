@@ -4,10 +4,13 @@ Loads session from assets/ig_session.json (sessionid + csrftoken cookies).
 When sessionid expires, user updates ig_session.json with fresh cookies from browser.
 """
 import json
+import logging
 import time
 from pathlib import Path
 
 from config import IG_USERNAME
+
+log = logging.getLogger(__name__)
 
 SESSION_FILE = Path("assets/ig_session.json")
 STATE_FILE = Path("assets/browser_state.json")

@@ -223,7 +223,8 @@ def run_video_cycle():
                     )
 
             try:
-                video_id = post_short(clip_path, title, caption_with_link)
+                yt_title = title.strip() or item.get("itemName", "Fashion Find")[:100]
+                video_id = post_short(clip_path, yt_title, caption_with_link)
                 log.info(f"YouTube Short posted: {video_id}")
             except Exception as e:
                 log.error(f"YouTube post {i} failed: {e}")
