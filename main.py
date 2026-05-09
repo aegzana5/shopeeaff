@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 from shopee import get_trending_fashion, pick_top_items
-from content_gen import generate_caption, generate_reel_script, generate_video_caption, generate_outfit_caption
+from content_gen import generate_caption, generate_reel_script, generate_video_caption, generate_outfit_caption, generate_first_comment
 from media_gen import create_post_image, create_reel
 from instagram import post_image, post_reel
 import random
@@ -70,7 +70,8 @@ def run_post_cycle():
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             img_path = create_post_image(item, item["affiliateUrl"], f"post_{ts}_{i}")
             caption_data = generate_caption(item, post_type="image")
-            media_id = post_image(img_path, caption_data["caption"])
+            first_comment = generate_first_comment(item)
+            media_id = post_image(img_path, caption_data["caption"], hashtags=first_comment)
             log.info(f"Image posted: {media_id} — {item['itemName'][:40]}")
             post_history.add(str(item.get("itemId", "")))
             posted += 1
@@ -217,10 +218,11 @@ def _make_clip(item: dict, i: int, signals: dict) -> tuple:
                 item, clip_name, voiceover_path=vo_path, bg_video_path=bg_path
             )
 
-    return clip_path, title, caption_with_link
+    first_comment = generate_first_comment(item)
+    return clip_path, title, caption_with_link, first_comment
 
 
-def _distribute_clip(clip_path, title: str, caption: str, item_name: str = "") -> None:
+def _distribute_clip(clip_path, title: str, caption: str, item_name: str = "", hashtags: str = "") -> None:
     """Post clip to all active platforms. Each platform fails independently."""
     try:
         yt_title = title.strip() or item_name[:100] or "Fashion Find"
@@ -231,7 +233,7 @@ def _distribute_clip(clip_path, title: str, caption: str, item_name: str = "") -
 
     try:
         from instagram import post_reel_clip
-        post_reel_clip(clip_path, caption)
+        post_reel_clip(clip_path, caption, hashtags=hashtags)
         log.info(f"Instagram Reel posted: {item_name[:40]}")
     except Exception as e:
         log.error(f"Instagram Reel post failed: {e}")
@@ -248,8 +250,8 @@ def run_video_cycle():
     posted = 0
     for i, item in enumerate(clip_items):
         try:
-            clip_path, title, caption = _make_clip(item, i, signals)
-            _distribute_clip(clip_path, title, caption, item.get("itemName", ""))
+            clip_path, title, caption, first_comment = _make_clip(item, i, signals)
+            _distribute_clip(clip_path, title, caption, item.get("itemName", ""), hashtags=first_comment)
             history.add(str(item.get("itemId", "")))
             posted += 1
         except Exception as e:
