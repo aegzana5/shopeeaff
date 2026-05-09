@@ -269,11 +269,16 @@ def post_reel_clip(video_path: Path, caption: str) -> str:
             # Open create dialog → click "New post" then "Reel" from dropdown
             page.locator('[aria-label="New post"]').first.click()
             time.sleep(2)
-            for reel_label in ["Reel", "รีล", "Reels"]:
-                btn = page.get_by_text(reel_label, exact=True)
-                if btn.count() > 0:
-                    btn.first.click()
-                    break
+            clicked = page.evaluate("""() => {
+                const labels = ['Reel', 'รีล', 'ลีล'];
+                const el = [...document.querySelectorAll('a, button, [role="menuitem"], span')]
+                    .find(e => labels.includes(e.textContent.trim()) && e.tagName !== 'TITLE');
+                if (el) { el.click(); return el.textContent.trim(); }
+                return '';
+            }""")
+            if not clicked:
+                log.warning("Reel dropdown option not found, falling back to Post")
+                page.get_by_text("Post", exact=True).first.click()
             time.sleep(3)
 
             # Find file input — may appear in page or iframe
