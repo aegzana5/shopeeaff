@@ -259,7 +259,15 @@ def _verify_and_fix_caption(page, caption: str) -> bool:
             '[aria-label="More options"], [aria-label="มีตัวเลือกเพิ่มเติม"], [aria-label="More"]'
         ).first.click(timeout=8000)
         page.wait_for_selector('[role="menu"]', timeout=5000)
-        page.get_by_role("menuitem", name="Edit").click()
+        # Thai IG uses "แก้ไข", English IG uses "Edit"
+        edit_btn = page.get_by_role("menuitem", name="Edit")
+        if edit_btn.count() == 0:
+            edit_btn = page.get_by_role("menuitem", name="แก้ไข")
+        if edit_btn.count() == 0:
+            edit_btn = page.locator('[role="menuitem"]').filter(has_text="Edit").first
+        if edit_btn.count() == 0:
+            edit_btn = page.locator('[role="menuitem"]').filter(has_text="แก้").first
+        edit_btn.click(timeout=5000)
 
         edit_sel = (
             '[aria-label*="caption"], [aria-label*="คำบรรยาย"], div[contenteditable="true"]'
