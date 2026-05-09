@@ -290,10 +290,13 @@ def post_reel_clip(video_path: Path, caption: str) -> str:
             # Click through Next steps until caption field appears
             CAPTION_SELECTORS = [
                 '[aria-label="Write a caption..."]',
+                '[aria-label*="Write a caption"]',
                 'textarea[aria-label*="caption"]',
                 'div[aria-label*="caption"]',
+                'div[aria-label*="คำบรรยาย"]',
                 'div[role="textbox"]',
                 'div[contenteditable="true"]',
+                'textarea',
             ]
 
             def _find_caption_field(pg):
@@ -307,7 +310,7 @@ def post_reel_clip(video_path: Path, caption: str) -> str:
                             pass
                 return None, None, None
 
-            for _ in range(6):
+            for _ in range(8):
                 frm, sel, lc = _find_caption_field(page)
                 if frm is not None:
                     break
@@ -315,19 +318,42 @@ def post_reel_clip(video_path: Path, caption: str) -> str:
                     btn = page.get_by_role("button", name=txt)
                     if btn.count() > 0:
                         btn.last.dispatch_event("click")
-                        time.sleep(2)
+                        time.sleep(3)
                         break
                 else:
-                    time.sleep(2)
+                    time.sleep(3)
 
             # Fill caption
             caption_filled = False
             frm, sel, lc = _find_caption_field(page)
             if lc is not None:
+                lc.click()
+                time.sleep(0.5)
                 lc.fill(caption)
                 time.sleep(1)
                 log.info(f"Reel caption filled via selector: {sel}")
                 caption_filled = True
+
+            if not caption_filled:
+                # JS fallback — React contenteditable via native input value setter
+                filled = page.evaluate("""(cap) => {
+                    const candidates = [...document.querySelectorAll('[contenteditable="true"], textarea, [role="textbox"]')];
+                    const el = candidates.find(e => e.offsetParent !== null) || candidates[0];
+                    if (!el) return '';
+                    el.focus();
+                    const setter = Object.getOwnPropertyDescriptor(
+                        el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLElement.prototype,
+                        el.tagName === 'TEXTAREA' ? 'value' : 'textContent'
+                    );
+                    if (setter && setter.set) setter.set.call(el, cap);
+                    else el.textContent = cap;
+                    el.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: cap}));
+                    return el.getAttribute('aria-label') || el.tagName;
+                }""", caption)
+                if filled:
+                    log.info(f"Reel caption filled via JS fallback (el={filled})")
+                    caption_filled = True
+
             if not caption_filled:
                 log.warning("Reel caption field not found — post will have no caption")
 
