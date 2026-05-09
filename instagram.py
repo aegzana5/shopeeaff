@@ -355,7 +355,8 @@ def post_reel_clip(video_path: Path, caption: str) -> str:
                     caption_filled = True
 
             if not caption_filled:
-                log.warning("Reel caption field not found — post will have no caption")
+                diag = page.evaluate("() => { const d = document.querySelector('[role=\"dialog\"]'); return d ? d.innerText.slice(0, 300) : document.body.innerText.slice(0, 300); }")
+                log.warning(f"Reel caption field not found — post will have no caption. Page text: {diag!r}")
 
             # Share
             page.evaluate("() => { [...document.querySelectorAll('[role=\"dialog\"] [role=\"button\"]')].find(b => b.innerText.trim() === 'Share')?.click() }")
