@@ -154,34 +154,30 @@ def _do_post(page, image_path: Path, caption: str):
     file_input.set_input_files(str(image_path))
     time.sleep(3)
 
-    # Next through all steps until caption field appears (crop → filter → adjust → caption)
-    for _ in range(4):
-        for sel in ['[aria-label="Write a caption..."]', 'textarea[aria-label*="caption"]']:
-            if page.locator(sel).count() > 0:
-                break
-        else:
-            for txt in ["Next", "ถัดไป"]:
-                lc = page.get_by_role("button", name=txt)
-                if lc.count() > 0:
-                    lc.last.dispatch_event("click")
-                    time.sleep(2)
-                    break
-            continue
-        break
-
-    caption_selectors = [
+    CAPTION_SELECTORS = [
         '[aria-label="Write a caption..."]',
         'textarea[aria-label*="caption"]',
         'div[aria-label*="caption"]',
+        'div[role="textbox"]',
         'div[contenteditable="true"]',
     ]
+
+    # Next through all steps until caption field appears (crop → filter → adjust → caption)
+    for _ in range(5):
+        if any(page.locator(s).count() > 0 for s in CAPTION_SELECTORS):
+            break
+        for txt in ["Next", "ถัดไป"]:
+            lc = page.get_by_role("button", name=txt)
+            if lc.count() > 0:
+                lc.last.dispatch_event("click")
+                time.sleep(2)
+                break
+
     caption_filled = False
-    for sel in caption_selectors:
+    for sel in CAPTION_SELECTORS:
         lc = page.locator(sel)
         if lc.count() > 0:
-            lc.first.click()
-            time.sleep(0.5)
-            page.keyboard.type(caption, delay=20)
+            lc.first.fill(caption)
             time.sleep(1)
             log.info(f"Caption filled via selector: {sel}")
             caption_filled = True
@@ -244,34 +240,29 @@ def post_reel_clip(video_path: Path, caption: str) -> str:
             time.sleep(8)
 
             # Click through Next steps until caption field appears
-            for _ in range(5):
-                for sel in ['[aria-label="Write a caption..."]', 'textarea[aria-label*="caption"]']:
-                    if page.locator(sel).count() > 0:
-                        break
-                else:
-                    for txt in ["Next", "ถัดไป", "下一步"]:
-                        lc = page.get_by_role("button", name=txt)
-                        if lc.count() > 0:
-                            lc.last.dispatch_event("click")
-                            time.sleep(2)
-                            break
-                    continue
-                break
-
-            # Fill caption
-            caption_selectors = [
+            CAPTION_SELECTORS = [
                 '[aria-label="Write a caption..."]',
                 'textarea[aria-label*="caption"]',
                 'div[aria-label*="caption"]',
+                'div[role="textbox"]',
                 'div[contenteditable="true"]',
             ]
+            for _ in range(5):
+                if any(page.locator(s).count() > 0 for s in CAPTION_SELECTORS):
+                    break
+                for txt in ["Next", "ถัดไป", "下一步"]:
+                    lc = page.get_by_role("button", name=txt)
+                    if lc.count() > 0:
+                        lc.last.dispatch_event("click")
+                        time.sleep(2)
+                        break
+
+            # Fill caption
             caption_filled = False
-            for sel in caption_selectors:
+            for sel in CAPTION_SELECTORS:
                 lc = page.locator(sel)
                 if lc.count() > 0:
-                    lc.first.click()
-                    time.sleep(0.5)
-                    page.keyboard.type(caption, delay=20)
+                    lc.first.fill(caption)
                     time.sleep(1)
                     log.info(f"Reel caption filled via selector: {sel}")
                     caption_filled = True
