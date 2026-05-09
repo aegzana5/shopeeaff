@@ -193,6 +193,51 @@ def _do_post(page, image_path: Path, caption: str):
             break
 
 
+def _verify_and_fix_caption(page, caption: str) -> bool:
+    try:
+        page.goto(
+            f"https://www.instagram.com/{IG_USERNAME}/",
+            wait_until="domcontentloaded",
+            timeout=20000,
+        )
+        page.wait_for_selector("article a[href*='/p/']", timeout=15000)
+        page.locator("article a[href*='/p/']").first.click()
+        page.wait_for_selector('[role="dialog"]', timeout=10000)
+
+        actual_caption = ""
+        for sel in ['[role="dialog"] h1', '[role="dialog"] span']:
+            el = page.locator(sel)
+            if el.count() > 0:
+                text = el.first.inner_text().strip()
+                if text:
+                    actual_caption = text
+                    break
+
+        if actual_caption:
+            log.info("Caption verified OK")
+            return True
+
+        page.locator(
+            '[aria-label="More options"], [aria-label="มีตัวเลือกเพิ่มเติม"]'
+        ).first.click()
+        page.wait_for_selector('[role="menu"]', timeout=5000)
+        page.get_by_role("menuitem", name="Edit").click()
+
+        edit_sel = (
+            '[aria-label*="caption"], [aria-label*="คำบรรยาย"], div[contenteditable="true"]'
+        )
+        page.wait_for_selector(edit_sel, timeout=8000)
+        page.locator(edit_sel).first.fill(caption)
+        page.get_by_role("button", name="Done").click()
+        time.sleep(2)
+        log.info("Caption missing — fixed via edit")
+        return True
+
+    except Exception as e:
+        log.warning(f"Caption verify/fix failed: {e}")
+        return False
+
+
 def post_reel(video_path: Path, caption: str) -> str:
     raise NotImplementedError("Reel posting via Playwright not yet implemented")
 
