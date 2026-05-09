@@ -252,6 +252,42 @@ def _verify_and_fix_caption(page, caption: str) -> bool:
         return False
 
 
+def _post_first_comment(page, hashtags: str) -> bool:
+    """Post hashtags as first comment on most recent post. Non-fatal."""
+    if not hashtags:
+        return False
+    try:
+        time.sleep(2)
+        page.goto(
+            f"https://www.instagram.com/{IG_USERNAME}/",
+            wait_until="domcontentloaded",
+            timeout=20000,
+        )
+        post_sel = "a[href*='/p/'], a[href*='/reel/']"
+        page.wait_for_selector(post_sel, timeout=15000)
+        page.evaluate(
+            "() => { document.querySelector(\"a[href*='/p/'], a[href*='/reel/']\")?.click() }"
+        )
+        page.wait_for_selector('[role="dialog"]', timeout=10000)
+
+        comment_sel = (
+            'textarea[aria-label*="comment"], '
+            'textarea[placeholder*="comment"], '
+            'textarea[aria-label*="ความคิดเห็น"]'
+        )
+        page.wait_for_selector(comment_sel, timeout=8000)
+        comment_field = page.locator(comment_sel).first
+        comment_field.click()
+        page.keyboard.type(hashtags, delay=10)
+        page.keyboard.press("Enter")
+        time.sleep(2)
+        log.info("First comment with hashtags posted")
+        return True
+    except Exception as e:
+        log.warning(f"First comment failed: {e}")
+        return False
+
+
 def post_reel(video_path: Path, caption: str) -> str:
     raise NotImplementedError("Reel posting via Playwright not yet implemented")
 

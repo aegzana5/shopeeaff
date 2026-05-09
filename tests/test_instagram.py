@@ -183,3 +183,48 @@ def test_post_reel_clip_caption_uses_keyboard_type():
 
     page.keyboard.type.assert_called_with("ทดสอบ reel", delay=30)
     assert fill_calls == [], f"fill() called unexpectedly with: {fill_calls}"
+
+
+def test_post_first_comment_types_hashtags():
+    """_post_first_comment clicks comment field and types hashtag block."""
+    from instagram import _post_first_comment
+
+    page = MagicMock()
+    comment_loc = MagicMock()
+    comment_loc.count.return_value = 1
+    comment_loc.first = MagicMock()
+
+    page.locator.return_value = comment_loc
+
+    with patch("instagram.IG_USERNAME", "testuser"), \
+         patch("instagram.time"):
+        result = _post_first_comment(page, "#แฟชั่น #ootd")
+
+    assert result is True
+    comment_loc.first.click.assert_called_once()
+    page.keyboard.type.assert_called_once_with("#แฟชั่น #ootd", delay=10)
+    page.keyboard.press.assert_called_once_with("Enter")
+
+
+def test_post_first_comment_empty_returns_false():
+    """_post_first_comment returns False immediately when hashtags empty."""
+    from instagram import _post_first_comment
+
+    page = MagicMock()
+    result = _post_first_comment(page, "")
+    assert result is False
+    page.goto.assert_not_called()
+
+
+def test_post_first_comment_exception_returns_false():
+    """Any exception in _post_first_comment returns False without raising."""
+    from instagram import _post_first_comment
+
+    page = MagicMock()
+    page.goto.side_effect = Exception("network error")
+
+    with patch("instagram.IG_USERNAME", "testuser"), \
+         patch("instagram.time"):
+        result = _post_first_comment(page, "#แฟชั่น")
+
+    assert result is False
