@@ -303,7 +303,17 @@ def _parse_script(raw: str) -> dict:
     return result
 
 
+def _clear_output():
+    import shutil
+    output_dir = Path("assets/output")
+    if output_dir.exists():
+        shutil.rmtree(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        log.info("assets/output cleared")
+
+
 if __name__ == "__main__":
     run_post_cycle()
     run_video_cycle()
     run_trend_cycle()
+    _clear_output()
