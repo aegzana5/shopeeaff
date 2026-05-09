@@ -247,26 +247,39 @@ def post_reel_clip(video_path: Path, caption: str) -> str:
                 'div[role="textbox"]',
                 'div[contenteditable="true"]',
             ]
-            for _ in range(5):
-                if any(page.locator(s).count() > 0 for s in CAPTION_SELECTORS):
+
+            def _find_caption_field(pg):
+                for frame in [pg] + list(pg.frames):
+                    for sel in CAPTION_SELECTORS:
+                        try:
+                            lc = frame.locator(sel)
+                            if lc.count() > 0:
+                                return frame, sel, lc.first
+                        except Exception:
+                            pass
+                return None, None, None
+
+            for _ in range(6):
+                frm, sel, lc = _find_caption_field(page)
+                if frm is not None:
                     break
-                for txt in ["Next", "ถัดไป", "下一步"]:
-                    lc = page.get_by_role("button", name=txt)
-                    if lc.count() > 0:
-                        lc.last.dispatch_event("click")
+                for txt in ["Next", "ถัดไป", "下一步", "Continue", "ต่อไป"]:
+                    btn = page.get_by_role("button", name=txt)
+                    if btn.count() > 0:
+                        btn.last.dispatch_event("click")
                         time.sleep(2)
                         break
+                else:
+                    time.sleep(2)
 
             # Fill caption
             caption_filled = False
-            for sel in CAPTION_SELECTORS:
-                lc = page.locator(sel)
-                if lc.count() > 0:
-                    lc.first.fill(caption)
-                    time.sleep(1)
-                    log.info(f"Reel caption filled via selector: {sel}")
-                    caption_filled = True
-                    break
+            frm, sel, lc = _find_caption_field(page)
+            if lc is not None:
+                lc.fill(caption)
+                time.sleep(1)
+                log.info(f"Reel caption filled via selector: {sel}")
+                caption_filled = True
             if not caption_filled:
                 log.warning("Reel caption field not found — post will have no caption")
 
