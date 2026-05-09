@@ -202,8 +202,9 @@ def _verify_and_fix_caption(page, caption: str) -> bool:
             wait_until="domcontentloaded",
             timeout=20000,
         )
-        page.wait_for_selector("article a[href*='/p/']", timeout=15000)
-        page.locator("article a[href*='/p/']").first.click()
+        post_sel = "a[href*='/p/'], a[href*='/reel/']"
+        page.wait_for_selector(post_sel, timeout=20000)
+        page.locator(post_sel).first.click()
         page.wait_for_selector('[role="dialog"]', timeout=10000)
 
         actual_caption = ""
