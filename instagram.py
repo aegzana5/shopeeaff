@@ -156,20 +156,28 @@ def _do_post(page, image_path: Path, caption: str):
     file_input.set_input_files(str(image_path))
     time.sleep(3)
 
-    # Target inner contenteditable first — outer wrapper div won't commit React state
+    # Specific selectors — only match the caption step, not crop/filter/adjust screens
+    CAPTION_STEP_SELECTORS = [
+        '[aria-label="Write a caption..."]',
+        '[aria-label*="caption"] div[contenteditable="true"]',
+        'div[aria-label*="คำบรรยาย"] div[contenteditable="true"]',
+        'textarea[aria-label*="caption"]',
+        'textarea[aria-label*="คำบรรยาย"]',
+    ]
+    # Broader fill targets (tried in order after nav)
     CAPTION_SELECTORS = [
         '[aria-label="Write a caption..."] div[contenteditable="true"]',
         '[aria-label*="caption"] div[contenteditable="true"]',
         'div[aria-label*="คำบรรยาย"] div[contenteditable="true"]',
-        'div[contenteditable="true"]',
         'textarea[aria-label*="caption"]',
         'textarea[aria-label*="คำบรรยาย"]',
+        'div[contenteditable="true"]',
         'textarea',
     ]
 
-    # Next through all steps until caption field appears (crop → filter → adjust → caption)
-    for _ in range(5):
-        if any(page.locator(s).count() > 0 for s in CAPTION_SELECTORS):
+    # Advance through steps (crop → filter → adjust → caption) using specific check
+    for _ in range(6):
+        if any(page.locator(s).count() > 0 for s in CAPTION_STEP_SELECTORS):
             break
         for txt in ["Next", "ถัดไป"]:
             lc = page.get_by_role("button", name=txt)
@@ -184,14 +192,7 @@ def _do_post(page, image_path: Path, caption: str):
         if lc.count() > 0:
             lc.first.click()
             time.sleep(0.3)
-            # JS focus on the exact contenteditable to ensure keyboard events commit
-            page.evaluate("""() => {
-                const el = document.querySelector('[aria-label="Write a caption..."] [contenteditable]')
-                    || document.querySelector('[contenteditable="true"]');
-                if (el) { el.focus(); el.click(); }
-            }""")
-            time.sleep(0.2)
-            page.keyboard.type(caption, delay=30)
+            lc.first.fill(caption)
             time.sleep(1)
             log.info(f"Caption filled via selector: {sel}")
             caption_filled = True
@@ -270,13 +271,15 @@ def _verify_and_fix_caption(page, caption: str) -> bool:
         edit_btn.click(timeout=5000)
 
         edit_sel = (
-            '[aria-label*="caption"], [aria-label*="คำบรรยาย"], div[contenteditable="true"]'
+            '[aria-label*="caption"] div[contenteditable="true"], '
+            '[aria-label*="คำบรรยาย"] div[contenteditable="true"], '
+            'div[contenteditable="true"]'
         )
         page.wait_for_selector(edit_sel, timeout=8000)
         edit_field = page.locator(edit_sel).first
         edit_field.click()
         time.sleep(0.3)
-        page.keyboard.type(caption, delay=30)
+        edit_field.fill(caption)
         page.get_by_role("button", name="Done").click()
         time.sleep(2)
         log.info("Caption missing — fixed via edit")
@@ -378,17 +381,35 @@ def post_reel_clip(video_path: Path, caption: str, hashtags: str = "") -> str:
             file_input.set_input_files(str(video_path))
             time.sleep(8)
 
-            # Target inner contenteditable — outer wrapper won't commit React state
+            # Specific selectors — only match caption step, not earlier upload/trim screens
+            CAPTION_STEP_SELECTORS = [
+                '[aria-label="Write a caption..."]',
+                '[aria-label*="Write a caption"]',
+                '[aria-label*="caption"] div[contenteditable="true"]',
+                '[aria-label*="คำบรรยาย"] div[contenteditable="true"]',
+                'textarea[aria-label*="caption"]',
+                'textarea[aria-label*="คำบรรยาย"]',
+            ]
             CAPTION_SELECTORS = [
                 '[aria-label="Write a caption..."] div[contenteditable="true"]',
                 '[aria-label*="Write a caption"] div[contenteditable="true"]',
                 '[aria-label*="caption"] div[contenteditable="true"]',
                 '[aria-label*="คำบรรยาย"] div[contenteditable="true"]',
-                'div[contenteditable="true"]',
                 'textarea[aria-label*="caption"]',
                 'textarea[aria-label*="คำบรรยาย"]',
+                'div[contenteditable="true"]',
                 'textarea',
             ]
+
+            def _at_caption_step(pg):
+                for frame in [pg] + list(pg.frames):
+                    for sel in CAPTION_STEP_SELECTORS:
+                        try:
+                            if frame.locator(sel).count() > 0:
+                                return True
+                        except Exception:
+                            pass
+                return False
 
             def _find_caption_field(pg):
                 for frame in [pg] + list(pg.frames):
@@ -402,8 +423,7 @@ def post_reel_clip(video_path: Path, caption: str, hashtags: str = "") -> str:
                 return None, None, None
 
             for _ in range(8):
-                frm, sel, lc = _find_caption_field(page)
-                if frm is not None:
+                if _at_caption_step(page):
                     break
                 for txt in ["Next", "ถัดไป", "下一步", "Continue", "ต่อไป"]:
                     btn = page.get_by_role("button", name=txt)
@@ -414,43 +434,16 @@ def post_reel_clip(video_path: Path, caption: str, hashtags: str = "") -> str:
                 else:
                     time.sleep(3)
 
-            # Fill caption
+            # Fill caption — fill() triggers React synthetic events reliably
             caption_filled = False
             frm, sel, lc = _find_caption_field(page)
             if lc is not None:
                 lc.click()
                 time.sleep(0.3)
-                # JS focus on exact contenteditable so keyboard events commit to React
-                page.evaluate("""() => {
-                    const el = document.querySelector('[aria-label="Write a caption..."] [contenteditable]')
-                        || document.querySelector('[contenteditable="true"]');
-                    if (el) { el.focus(); el.click(); }
-                }""")
-                time.sleep(0.2)
-                page.keyboard.type(caption, delay=30)
+                lc.fill(caption)
                 time.sleep(1)
                 log.info(f"Reel caption filled via selector: {sel}")
                 caption_filled = True
-
-            if not caption_filled:
-                # JS fallback — React contenteditable via native input value setter
-                filled = page.evaluate("""(cap) => {
-                    const candidates = [...document.querySelectorAll('[contenteditable="true"], textarea, [role="textbox"]')];
-                    const el = candidates.find(e => e.offsetParent !== null) || candidates[0];
-                    if (!el) return '';
-                    el.focus();
-                    const setter = Object.getOwnPropertyDescriptor(
-                        el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLElement.prototype,
-                        el.tagName === 'TEXTAREA' ? 'value' : 'textContent'
-                    );
-                    if (setter && setter.set) setter.set.call(el, cap);
-                    else el.textContent = cap;
-                    el.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: cap}));
-                    return el.getAttribute('aria-label') || el.tagName;
-                }""", caption)
-                if filled:
-                    log.info(f"Reel caption filled via JS fallback (el={filled})")
-                    caption_filled = True
 
             if not caption_filled:
                 diag = page.evaluate("() => { const d = document.querySelector('[role=\"dialog\"]'); return d ? d.innerText.slice(0, 300) : document.body.innerText.slice(0, 300); }")
