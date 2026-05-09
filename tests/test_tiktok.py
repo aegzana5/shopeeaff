@@ -57,8 +57,10 @@ def test_post_clip_raises_on_expired_session(tmp_path):
     mock_browser = MagicMock()
     mock_browser.new_context.return_value = mock_ctx
 
+    mock_page.frames = []
+
     mock_p = MagicMock()
-    mock_p.chromium.launch.return_value = mock_browser
+    mock_p.webkit.launch.return_value = mock_browser  # code uses webkit not chromium
 
     mock_playwright_cm = MagicMock()
     mock_playwright_cm.__enter__ = MagicMock(return_value=mock_p)
@@ -94,10 +96,18 @@ def test_post_clip_returns_posted_on_success(tmp_path):
         lc.count.return_value = 1
         return lc
 
+    # Frame mock with file input so the upload path succeeds
+    mock_frame = MagicMock()
+    file_input_loc = MagicMock()
+    file_input_loc.count.return_value = 1
+    file_input_loc.first = MagicMock()
+    mock_frame.locator.side_effect = lambda sel: file_input_loc if 'type="file"' in sel else make_locator()
+
     mock_page = MagicMock()
     mock_page.url = "https://www.tiktok.com/upload"
     mock_page.expect_file_chooser.return_value = mock_fc_cm
     mock_page.locator.side_effect = lambda sel: make_locator()
+    mock_page.frames = [mock_frame]
 
     mock_ctx = MagicMock()
     mock_ctx.new_page.return_value = mock_page
@@ -106,7 +116,7 @@ def test_post_clip_returns_posted_on_success(tmp_path):
     mock_browser.new_context.return_value = mock_ctx
 
     mock_p = MagicMock()
-    mock_p.chromium.launch.return_value = mock_browser
+    mock_p.webkit.launch.return_value = mock_browser  # code uses webkit not chromium
 
     mock_playwright_cm = MagicMock()
     mock_playwright_cm.__enter__ = MagicMock(return_value=mock_p)
@@ -127,5 +137,5 @@ def test_post_clip_returns_posted_on_success(tmp_path):
     mock_page.goto.assert_called_once()
     goto_url = mock_page.goto.call_args[0][0]
     assert "tiktok.com/upload" in goto_url
-    # Verify file was set
-    mock_fc_value.set_files.assert_called_once()
+    # Verify file was set via set_input_files on the frame's file input
+    file_input_loc.first.set_input_files.assert_called_once()
