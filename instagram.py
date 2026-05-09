@@ -205,8 +205,8 @@ def _verify_and_fix_caption(page, caption: str) -> bool:
         )
         post_sel = "a[href*='/p/'], a[href*='/reel/']"
         page.wait_for_selector(post_sel, timeout=30000)
-        page.locator(post_sel).first.click()
-        page.wait_for_selector('[role="dialog"]', timeout=10000)
+        page.evaluate("() => { document.querySelector(\"a[href*='/p/'], a[href*='/reel/']\")?.click() }")
+        page.wait_for_selector('[role="dialog"]', timeout=15000)
 
         actual_caption = ""
         for sel in ['[role="dialog"] h1', '[role="dialog"] span']:
