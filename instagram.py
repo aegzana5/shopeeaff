@@ -197,13 +197,14 @@ def _do_post(page, image_path: Path, caption: str):
 
 def _verify_and_fix_caption(page, caption: str) -> bool:
     try:
+        time.sleep(3)
         page.goto(
             f"https://www.instagram.com/{IG_USERNAME}/",
-            wait_until="domcontentloaded",
-            timeout=20000,
+            wait_until="load",
+            timeout=30000,
         )
         post_sel = "a[href*='/p/'], a[href*='/reel/']"
-        page.wait_for_selector(post_sel, timeout=20000)
+        page.wait_for_selector(post_sel, timeout=30000)
         page.locator(post_sel).first.click()
         page.wait_for_selector('[role="dialog"]', timeout=10000)
 
@@ -265,10 +266,14 @@ def post_reel_clip(video_path: Path, caption: str) -> str:
             page.goto("https://www.instagram.com/", wait_until="domcontentloaded", timeout=30000)
             time.sleep(3)
 
-            # Open create dialog → click "New post" then "Post" from dropdown
+            # Open create dialog → click "New post" then "Reel" from dropdown
             page.locator('[aria-label="New post"]').first.click()
             time.sleep(2)
-            page.get_by_text("Post", exact=True).first.click()
+            for reel_label in ["Reel", "รีล", "Reels"]:
+                btn = page.get_by_text(reel_label, exact=True)
+                if btn.count() > 0:
+                    btn.first.click()
+                    break
             time.sleep(3)
 
             # Find file input — may appear in page or iframe
