@@ -1,0 +1,166 @@
+{
+  "/Users/aegisen/fashion-bot/trend_discovery.py": {
+    "mtime": 1778202489.5606666,
+    "hash": "d585c25d0f23a86c8f9053b08e332a96"
+  },
+  "/Users/aegisen/fashion-bot/outfit_matcher.py": {
+    "mtime": 1778238987.4600222,
+    "hash": "ca923729de9d68971fdf75d12a2b0ac6"
+  },
+  "/Users/aegisen/fashion-bot/setup_instagram.py": {
+    "mtime": 1778074120.072749,
+    "hash": "cd089197ff406c5f14469f65c34c80d2"
+  },
+  "/Users/aegisen/fashion-bot/config.py": {
+    "mtime": 1778239035.853995,
+    "hash": "a6dca7d85f1b2f2800de5b8b620ea1aa"
+  },
+  "/Users/aegisen/fashion-bot/trend_reshare.py": {
+    "mtime": 1778242314.4607713,
+    "hash": "4a4359cdd999411d1229a5763ebded81"
+  },
+  "/Users/aegisen/fashion-bot/media_gen.py": {
+    "mtime": 1778097121.6771119,
+    "hash": "81213b74d9be7ec9fd83d577b38a21bf"
+  },
+  "/Users/aegisen/fashion-bot/youtube.py": {
+    "mtime": 1778225725.973734,
+    "hash": "ecea1ea085c5f29f1557b5e0b18e6261"
+  },
+  "/Users/aegisen/fashion-bot/image_ai.py": {
+    "mtime": 1778238976.5388331,
+    "hash": "75e81a6161d095c749a11bea4d95d5e1"
+  },
+  "/Users/aegisen/fashion-bot/setup_tiktok.py": {
+    "mtime": 1778098283.9596262,
+    "hash": "375dbc80aaa5cee0176e1da276f7370b"
+  },
+  "/Users/aegisen/fashion-bot/viral_gen.py": {
+    "mtime": 1778239028.965306,
+    "hash": "1c23f1a26912d43a64cfff9739feff4b"
+  },
+  "/Users/aegisen/fashion-bot/tts.py": {
+    "mtime": 1778232958.733052,
+    "hash": "5e5263f22a4f13fd14429f62b918b2a2"
+  },
+  "/Users/aegisen/fashion-bot/trend_signals.py": {
+    "mtime": 1778197730.1239119,
+    "hash": "b5bda3851ed977629624006e19fa1871"
+  },
+  "/Users/aegisen/fashion-bot/video_gen.py": {
+    "mtime": 1778225711.8084238,
+    "hash": "b091f6586781c0f52d822db463a5f1c6"
+  },
+  "/Users/aegisen/fashion-bot/shopee.py": {
+    "mtime": 1778191712.6081474,
+    "hash": "453bb2507daea2af28b0f8d8231af11c"
+  },
+  "/Users/aegisen/fashion-bot/stock_media.py": {
+    "mtime": 1778181566.6815631,
+    "hash": "b50e58f987b915addabf10c64c58f690"
+  },
+  "/Users/aegisen/fashion-bot/instagram.py": {
+    "mtime": 1778298692.8185785,
+    "hash": "ed84c0f0a995b9d0b674c7dceab77588"
+  },
+  "/Users/aegisen/fashion-bot/tiktok.py": {
+    "mtime": 1778209139.6706157,
+    "hash": "1758fc5504e0b14158953364ca6c38b8"
+  },
+  "/Users/aegisen/fashion-bot/scheduler.py": {
+    "mtime": 1778241340.4193645,
+    "hash": "baf9da45ea1e172404097545e605db88"
+  },
+  "/Users/aegisen/fashion-bot/main.py": {
+    "mtime": 1778297521.7383726,
+    "hash": "ceb887836316da946ce8f48bd24a7d2a"
+  },
+  "/Users/aegisen/fashion-bot/content_gen.py": {
+    "mtime": 1778242267.853359,
+    "hash": "dd6431e95db1b0950110e6ecac777d48"
+  },
+  "/Users/aegisen/fashion-bot/tests/test_youtube.py": {
+    "mtime": 1778243071.6600459,
+    "hash": "c925e3856e03d78fc93d2bd13ff27fef"
+  },
+  "/Users/aegisen/fashion-bot/tests/test_shopee.py": {
+    "mtime": 1778195372.3110495,
+    "hash": "695f283f1ac8208d1363e707503681bb"
+  },
+  "/Users/aegisen/fashion-bot/tests/test_trend_reshare.py": {
+    "mtime": 1778200625.0953853,
+    "hash": "9860d087530e554e79edb03c61db5364"
+  },
+  "/Users/aegisen/fashion-bot/tests/test_tts.py": {
+    "mtime": 1778181326.8205683,
+    "hash": "c7944d975e49b1f0390d94ea3b3a7d95"
+  },
+  "/Users/aegisen/fashion-bot/tests/test_video_gen.py": {
+    "mtime": 1778181831.5108638,
+    "hash": "0bd35432cc8f7ce2d6aa065e670cb6da"
+  },
+  "/Users/aegisen/fashion-bot/tests/test_tiktok.py": {
+    "mtime": 1778243435.7528212,
+    "hash": "970655256d5be2a8ee87a0cb1ebb38fd"
+  },
+  "/Users/aegisen/fashion-bot/tests/test_trend_signals.py": {
+    "mtime": 1778196748.145871,
+    "hash": "8b04775d2b6832bc8e3a97cf5f5d0a34"
+  },
+  "/Users/aegisen/fashion-bot/tests/__init__.py": {
+    "mtime": 1778087784.3429985,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/aegisen/fashion-bot/tests/test_media_gen.py": {
+    "mtime": 1778097112.7905536,
+    "hash": "fcc047dc28db990608fb87e399451dc8"
+  },
+  "/Users/aegisen/fashion-bot/tests/test_trend_discovery.py": {
+    "mtime": 1778197812.395574,
+    "hash": "75ff664b12551230926e293847b305b2"
+  },
+  "/Users/aegisen/fashion-bot/tests/test_viral_gen.py": {
+    "mtime": 1778182142.932052,
+    "hash": "d46fefba96a8b4193a93b680ebbd4dc9"
+  },
+  "/Users/aegisen/fashion-bot/tests/test_stock_media.py": {
+    "mtime": 1778181556.4541388,
+    "hash": "711af35b2ee1f99e7acde1462fdb4de8"
+  },
+  "/Users/aegisen/fashion-bot/requirements.txt": {
+    "mtime": 1778184353.7995963,
+    "hash": "937cd5fa51bdae66c9022dede7880d1f"
+  },
+  "/Users/aegisen/fashion-bot/docs/superpowers/plans/2026-05-06-shopee-feed-integration.md": {
+    "mtime": 1778086884.3630226,
+    "hash": "d77215c1e29e385826c265921a9e93a1"
+  },
+  "/Users/aegisen/fashion-bot/docs/superpowers/plans/2026-05-08-voiceover-visual-enrichment.md": {
+    "mtime": 1778180995.4567752,
+    "hash": "317142188965ee4d6663857f24f5b246"
+  },
+  "/Users/aegisen/fashion-bot/docs/superpowers/plans/2026-05-08-viral-trend-repost.md": {
+    "mtime": 1778184266.066595,
+    "hash": "97c16bfaefac8411ffccc99510c4c6c7"
+  },
+  "/Users/aegisen/fashion-bot/docs/superpowers/plans/2026-05-07-video-tiktok-youtube.md": {
+    "mtime": 1778096953.182948,
+    "hash": "d3460fe1a2dd3173dd2fad506d03ccda"
+  },
+  "/Users/aegisen/fashion-bot/docs/superpowers/specs/2026-05-08-viral-trend-repost-design.md": {
+    "mtime": 1778183915.229659,
+    "hash": "199395c95ee0ebeab7b506a9421ac836"
+  },
+  "/Users/aegisen/fashion-bot/docs/superpowers/specs/2026-05-08-voiceover-visual-enrichment-design.md": {
+    "mtime": 1778180365.9252043,
+    "hash": "33b58aca36cf8c50bd5f46fd8c6fb084"
+  },
+  "/Users/aegisen/fashion-bot/docs/superpowers/specs/2026-05-07-video-tiktok-youtube-design.md": {
+    "mtime": 1778096680.8422117,
+    "hash": "b41f2729762db0c946877fc9cea80774"
+  },
+  "/Users/aegisen/fashion-bot/docs/superpowers/specs/2026-05-06-shopee-feed-integration-design.md": {
+    "mtime": 1778086694.7263217,
+    "hash": "de2ff3cbcc91a7ca790d0af0dd4c2e0c"
+  }
+}
