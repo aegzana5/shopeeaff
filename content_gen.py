@@ -197,6 +197,24 @@ Return ONLY the caption (4 lines)."""
     }
 
 
+def generate_first_comment(item: dict) -> str:
+    """Return hashtag block for first comment: base HASHTAGS_IG_TH + item keyword tags."""
+    import re
+    name = item.get("itemName", "")
+    words = re.split(r'[\s/\-,。、]+', name)
+    dynamic: list[str] = []
+    for w in words:
+        w = w.strip()
+        if len(w) >= 3 and not w.isdigit():
+            tag = f"#{w.replace(' ', '')}"
+            if tag not in dynamic and tag not in HASHTAGS_IG_TH:
+                dynamic.append(tag)
+        if len(dynamic) >= 5:
+            break
+
+    return " ".join(HASHTAGS_IG_TH[:15] + dynamic)
+
+
 def generate_reel_script(items: list[dict]) -> str:
     """Generate short script/text overlays for 5-sec reel featuring multiple items."""
     names = [item["itemName"][:40] for item in items[:3]]

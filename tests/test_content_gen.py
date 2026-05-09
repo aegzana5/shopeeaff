@@ -76,3 +76,16 @@ def test_generate_video_caption_caption_equals_body():
 
     assert result["caption"] == result["caption_body"]
     assert "#" not in result["caption"]
+
+
+def test_generate_first_comment_returns_hashtag_block():
+    """generate_first_comment returns non-empty hashtag string with base tags."""
+    from content_gen import generate_first_comment
+
+    result = generate_first_comment(FAKE_ITEM)
+
+    assert isinstance(result, str)
+    assert "#แฟชั่น" in result
+    assert "#ootd" in result
+    tags = [t for t in result.split() if t.startswith("#")]
+    assert len(tags) >= 10
