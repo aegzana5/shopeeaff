@@ -71,7 +71,7 @@ def generate_caption(item: dict, post_type: str = "image") -> dict:
 
 
 def generate_video_caption(item: dict, extra_hooks: list = None) -> dict:
-    """Generate TikTok-native caption: scroll-stop hook + body + CTA + hashtags."""
+    """Generate hook-style caption for Instagram Reels: scroll-stop hook + body + CTA."""
     price = item.get("priceDisplay") or item.get("priceMin") or item.get("price", "")
     if isinstance(price, (int, float)) and price > 1000:
         price_display = f"฿{float(price)/100000:.0f}"
