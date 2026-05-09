@@ -4,28 +4,26 @@ import pytest
 
 
 def _make_page(caption_text: str):
-    """Build a mock Playwright page. caption_text='' simulates missing caption."""
+    """Build mock Playwright page using IG's caption container selector."""
     page = MagicMock()
 
-    # Caption locator — used inside [role="dialog"] h1 and span checks
-    caption_locator = MagicMock()
+    caption_loc = MagicMock()
     if caption_text:
-        caption_locator.count.return_value = 1
-        caption_locator.first.inner_text.return_value = caption_text
+        caption_loc.count.return_value = 1
+        caption_loc.first.inner_text.return_value = caption_text
     else:
-        caption_locator.count.return_value = 0
+        caption_loc.count.return_value = 0
 
-    # Edit field locator — used after clicking Edit
-    edit_locator = MagicMock()
-    edit_locator.first = MagicMock()
+    edit_loc = MagicMock()
+    edit_loc.first = MagicMock()
 
-    def locator_side_effect(sel):
-        if "h1" in sel or "span" in sel:
-            return caption_locator
-        return edit_locator
+    def locator_side(sel):
+        if '_a9zs' in sel or 'caption' in sel.lower():
+            return caption_loc
+        return edit_loc
 
-    page.locator.side_effect = locator_side_effect
-    return page, edit_locator
+    page.locator.side_effect = locator_side
+    return page, edit_loc
 
 
 def test_verify_caption_already_present_returns_true():
@@ -44,7 +42,7 @@ def test_verify_caption_already_present_returns_true():
 
 
 def test_verify_caption_missing_triggers_edit_and_returns_true():
-    """When caption is empty, trigger edit flow and fill caption."""
+    """When caption is empty, trigger edit flow and use keyboard.type."""
     from instagram import _verify_and_fix_caption
 
     page, edit_locator = _make_page("")  # no caption
@@ -57,10 +55,25 @@ def test_verify_caption_missing_triggers_edit_and_returns_true():
     assert result is True
     # Edit menu item was clicked
     page.get_by_role.assert_any_call("menuitem", name="Edit")
-    # Caption field was filled
-    edit_locator.first.fill.assert_called_once_with("My product caption")
+    # Caption filled via keyboard.type not .fill()
+    page.keyboard.type.assert_called_with("My product caption", delay=30)
+    edit_locator.first.fill.assert_not_called()
     # Done button was clicked
     page.get_by_role.assert_any_call("button", name="Done")
+
+
+def test_verify_fix_edit_uses_keyboard_type():
+    """Edit flow in _verify_and_fix_caption must use keyboard.type not fill."""
+    from instagram import _verify_and_fix_caption
+
+    page, edit_loc = _make_page("")  # no caption → triggers edit
+
+    with patch("instagram.IG_USERNAME", "testuser"), \
+         patch("instagram.time"):
+        _verify_and_fix_caption(page, "ทดสอบ")
+
+    page.keyboard.type.assert_called_with("ทดสอบ", delay=30)
+    edit_loc.first.fill.assert_not_called()
 
 
 def test_verify_caption_exception_returns_false():
@@ -118,7 +131,8 @@ def test_do_post_uses_keyboard_type_not_fill():
     page.get_by_text.return_value = MagicMock()
     page.evaluate.return_value = "Post shared"
 
-    with patch("instagram.time"):
+    with patch("instagram.time"), \
+         patch("instagram._verify_and_fix_caption", return_value=True):
         _do_post(page, Path("/tmp/fake.jpg"), "ทดสอบ caption")
 
     page.keyboard.type.assert_called_once_with("ทดสอบ caption", delay=30)

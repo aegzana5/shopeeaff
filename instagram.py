@@ -210,8 +210,13 @@ def _verify_and_fix_caption(page, caption: str) -> bool:
         page.evaluate("() => { document.querySelector(\"a[href*='/p/'], a[href*='/reel/']\")?.click() }")
         page.wait_for_selector('[role="dialog"]', timeout=15000)
 
+        CAPTION_CONTAINER_SELS = [
+            '[role="dialog"] div._a9zs',
+            '[role="dialog"] ._a9zs',
+            '[role="dialog"] article div[class*="caption"]',
+        ]
         actual_caption = ""
-        for sel in ['[role="dialog"] h1', '[role="dialog"] span']:
+        for sel in CAPTION_CONTAINER_SELS:
             el = page.locator(sel)
             if el.count() > 0:
                 text = el.first.inner_text().strip()
@@ -233,7 +238,10 @@ def _verify_and_fix_caption(page, caption: str) -> bool:
             '[aria-label*="caption"], [aria-label*="คำบรรยาย"], div[contenteditable="true"]'
         )
         page.wait_for_selector(edit_sel, timeout=8000)
-        page.locator(edit_sel).first.fill(caption)
+        edit_field = page.locator(edit_sel).first
+        edit_field.click()
+        time.sleep(0.3)
+        page.keyboard.type(caption, delay=30)
         page.get_by_role("button", name="Done").click()
         time.sleep(2)
         log.info("Caption missing — fixed via edit")
